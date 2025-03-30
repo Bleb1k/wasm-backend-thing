@@ -2,8 +2,8 @@
  * TODO: Add debug info support (names and labels)
  */
 
-import app, { encodeLEB128, import_kind, mutability, Type } from "./app.js";
-// import instruction from "./instructions.js";
+import app, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
+import instr, { raw_instr } from "./instructions.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -27,6 +27,22 @@ app.newImport("foo", [
 //   ],
 //   { export: "addTwo" },
 // );
+const hundred = app.newFunction(
+  [[], [Type.i32]],
+  [[Type.i32, 1]],
+  [
+    instr.i32(100n), // [raw_instr.i32_const, 3],
+    // instr.loop(Type.Func([], [Type.i32]), [
+    //   [raw_instr.i32_const, 3],
+    //   [raw_instr.i32_mul],
+    //   [raw_instr.local_tee, 0],
+    //   [raw_instr.local_get, 0],
+    //   [raw_instr.br_if, 0],
+    // ]),
+    raw_instr.return,
+  ],
+  { export: "true" }
+)
 // app.newFunction([[], [Type.i32]], [], [
 //   instruction.i32_const, encodeLEB128("s32", 123),
 //   instruction.i32_const, encodeLEB128("s32", 123),
@@ -35,14 +51,14 @@ app.newImport("foo", [
 
 const { instance, module } = await app.compile({
   foo: {
-    bar() {console.log(123)},
-    my_table: new WebAssembly.Table({element: "anyfunc", initial: 10}),
-    memory: new WebAssembly.Memory({initial: 1}),
+    bar() { console.log(123) },
+    my_table: new WebAssembly.Table({ element: "anyfunc", initial: 10 }),
+    memory: new WebAssembly.Memory({ initial: 1 }),
     my_global: 1,
   }
 });
 
-console.log(instance.exports, module);
+console.log(instance.exports.true(), module);
 
 // console.log(instance.exports.addTwo(1,-2))
 
@@ -63,7 +79,7 @@ console.log(instance.exports, module);
     local.get 1
     i32.add)
   (func (result i32)
-  	i32.const 123
-  	i32.const 123
-  	call $add))
+    i32.const 123
+    i32.const 123
+    call $add))
 */
