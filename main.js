@@ -3,7 +3,7 @@
  */
 
 import app, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
-import instr, { raw_instr } from "./instructions.js";
+import instr, raw_instr from "./instructions.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -27,27 +27,39 @@ app.newImport("foo", [
 //   ],
 //   { export: "addTwo" },
 // );
-const hundred = app.newFunction(
-  [[], [Type.i32]],
-  [[Type.i32, 1]],
-  [
-    instr.i32(100n), // [raw_instr.i32_const, 3],
-    // instr.loop(Type.Func([], [Type.i32]), [
-    //   [raw_instr.i32_const, 3],
-    //   [raw_instr.i32_mul],
-    //   [raw_instr.local_tee, 0],
-    //   [raw_instr.local_get, 0],
-    //   [raw_instr.br_if, 0],
-    // ]),
-    raw_instr.return,
-  ],
-  { export: "true" }
-)
+
 // app.newFunction([[], [Type.i32]], [], [
 //   instruction.i32_const, encodeLEB128("s32", 123),
 //   instruction.i32_const, encodeLEB128("s32", 123),
 //   instruction.call, addTwo
 // ], { });
+
+// app.function((x = W.I32.param("x"), y = W.I64.param("y")) => {
+//   y.cast(W.I32).add(x).store(x);
+//   return [x, x, y];
+// })
+
+/**
+ * There, app.function changes global context to the context of current app,
+ * then pushes "func scope" stack (nested function support?)
+ * then runs the function
+ * during the run, 'W' manipulates global context
+ * step-by-step:
+ * 1. app.function registers function builder, pushes it as a new stack
+ * 2. I32.param("x") registers new function parameter
+ * 3. I32.const(50) pushes it onto the stack
+ * 4. x.add(50).add()
+ *   - creates I32.const(50)
+ *   - loads local 'x'
+ *   - adds them, keeps result on the stack
+ *   - pops value on the stack
+ *   - if types are the same, adds them
+ * 5. app.function parses returned values
+ */
+const add_50 = app.function((x = W.I32.param("x")) => {
+  W.I32.const(50)
+  return x.add(50).add()
+})
 
 const { instance, module } = await app.compile({
   foo: {

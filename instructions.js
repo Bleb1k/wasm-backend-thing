@@ -6,81 +6,13 @@ import { Type, Ctx, encodeLEB128 } from "./lib.js";
 /** @typedef {[args?: number[], rets?: number[]]} BlockType */
 /** @typedef {(ctx: Ctx) => void} Instruction */
 
-/*
- * Stack-polymorphic instructions are valid in any stack state, bypassing type/value checks.
- * Used for traps/abrupt exits.
- * These instructions "poison" the stack, letting the validator ignore subsequent code.
- */
-
-export default {
-  /**
-   * @returns {Instruction}
-   */
-  unreachable: () => ((e = new Error("ERROR: Reached unreachable.")) => (ctx) => ctx.try(e, () => {
-    // either an instruction, an array of instructions,
-    // or a function (accumulated) => (number|number[])[]
-    // returns void
-    ctx.pushBytes(raw_instr.unreachable)
-    ctx.trap();
-  }))(),
-  nop: () => (ctx) => ctx.pushBytes(raw_instr.nop),
-  /**
-   * @param {BlockType} type
-   * @param {Instructions} code
-   * @returns {Instruction}
-   */
-  block: (type, code) => ((e = new Error()) => (ctx) => ctx.try(e, () => {
-    ctx.startBlock(raw_instr.block, type)
-    ctx.runInstructions(code)
-    ctx.endBlock(type)
-  }))(),
-  /**
-   * @param {BlockType} type
-   * @param {Instructions} code
-   * @returns {Instruction}
-   */
-  loop: (type, code) => ((e = new Error()) => (ctx) => ctx.try(e, () => {
-    ctx.startBlock(raw_instr.loop, type)
-    ctx.runInstructions(code)
-    ctx.endBlock(type)
-  }))(),
-  /**
-   * @param {BlockType} type
-   * @param {Instructions} condition
-   * @param {Instructions} if_branch
-   * @param {Instructions?} else_branch
-   * @returns {Instruction}
-   */
-  if: (type = Type.result, condition, if_branch, else_branch) =>
-  ((e = new Error()) => (ctx) => ctx.try(e, () => {
-    ctx.runInstructions(condition)
-    ctx.startBlock(raw_instr.if, type)
-    ctx.runInstructions(if_branch)
-    ctx.endBlock(type)
-    if ((else_branch ?? undefined) !== "undefined") {
-      ctx.rollbackLastBlock(type)
-      ctx.startBlock(raw_instr.else, type)
-      ctx.runInstructions(else_branch)
-      ctx.endBlock(type)
-    }
-  }))(),
-  /**
-   * @param {number} num
-   * @param {boolean} signed
-   * @returns {Instruction}
-   */
-  i32: (num, signed = true) => ((e = new Error()) => (ctx) => ctx.try(e, () => {
-    ctx.pushBytes([raw_instr.i32_const, encodeLEB128(signed ? "s32" : "u32", num)])
-  }))(),
-}
-
 /**
  * Manually transcribed 436 wasm instructions!
  * And each commented by an AI!
  *
  * TODO: make each function into it's own function with checks and whatnot
  */
-export const raw_instr = {
+export default {
     /**
      * Unreachable opcode: Indicates an invalid or undefined state.
      * Traps the program when executed.
@@ -345,10 +277,10 @@ export const raw_instr = {
      * Traps if the input value is invalid (e.g., exceeds max memory limits).
      */
     memory_grow: byte`\x40`,
-        /**
-     * Pushes a 32-bit integer constant onto the stack.
-     * The immediate value is encoded as a signed LEB128.
-     */
+    /**
+ * Pushes a 32-bit integer constant onto the stack.
+ * The immediate value is encoded as a signed LEB128.
+ */
     i32_const: byte`\x41`,
     /**
      * Pushes a 64-bit integer constant onto the stack.
@@ -420,7 +352,7 @@ export const raw_instr = {
      * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
      */
     i32_ge_u: byte`\x4f`,
-        /**
+    /**
      * Checks if the top i64 value is zero.
      * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
      */
@@ -595,7 +527,7 @@ export const raw_instr = {
      * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
      */
     i32_rem_s: byte`\x6f`,
-        /**
+    /**
      * Unsigned integer remainder for i32.
      * Pops 2 values, pushes (a % b) as i32.
      * Traps if b = 0.
@@ -760,7 +692,7 @@ export const raw_instr = {
      * Pops 1 value, pushes trunc(a) as f32.
      */
     f32_trunc: byte`\x8f`,
-        /**
+    /**
      * Rounds f32 to nearest integer (ties to even).
      * Pops 1 value, pushes rounded result as f32.
      * Follows IEEE 754 rules (NaN → NaN).
@@ -942,7 +874,7 @@ export const raw_instr = {
      * Traps if value is NaN, ±infinity, or out of u64 range.
      */
     i64_trunc_f32_u: byte`\xaf`,
-        /**
+    /**
      * Truncates f64 to signed i64.
      * Pops 1 value, pushes truncated integer as i64.
      * Traps if value is NaN, ±infinity, or out of i64 range.
@@ -1073,7 +1005,7 @@ export const raw_instr = {
      * Pushes a funcref referencing the function at the given index in the module's function table.
      */
     ref_func: byte`\xd2`,
-        /**
+    /**
      * Saturating truncation of f32 to signed i32.
      * Pops 1 value, pushes truncated integer as i32.
      * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
@@ -1121,7 +1053,7 @@ export const raw_instr = {
      * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
      */
     i64_trunc_sat_f64_u: byte`\xfc\x07`,
-        /**
+    /**
      * Initializes a region of linear memory with data from a passive data segment.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from the passive data segment to memory at `dest`.
@@ -1179,7 +1111,7 @@ export const raw_instr = {
      * Writes `len` copies of `value` to the table starting at `dest`.
      */
     table_fill: byte`\xfc\x11`,
-        /**
+    /**
      * Loads a 128-bit vector from linear memory at the address popped from the stack.
      * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
      */
@@ -1284,7 +1216,7 @@ export const raw_instr = {
      * Pops 1 value and splats it across all 2 lanes of the vector.
      */
     f64x2_splat: byte`\xfd\x14`,
-        /**
+    /**
      * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
      */
@@ -1414,7 +1346,7 @@ export const raw_instr = {
      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
      */
     i16x8_ne: byte`\xfd\x2e`,
-        /**
+    /**
      * Compares two 128-bit vectors for signed less-than (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
      */
@@ -1529,10 +1461,10 @@ export const raw_instr = {
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
      */
     f32x4_le: byte`\xfd\x45`,
-        /**
-     * Compares two 128-bit vectors of 32-bit floats for greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
-     */
+    /**
+ * Compares two 128-bit vectors of 32-bit floats for greater-than-or-equal (per-lane).
+ * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
+ */
     f32x4_ge: byte`\xfd\x46`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for equality (per-lane).
@@ -1610,7 +1542,7 @@ export const raw_instr = {
      * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
      */
     v128_load16_lane: byte`\xfd\x55`,
-        /**
+    /**
      * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
      * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
      */
@@ -1691,10 +1623,10 @@ export const raw_instr = {
      * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
      */
     i8x16_narrow_i16x8_s: byte`\xfd\x65`,
-        /**
-     * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
-     * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
-     */
+    /**
+ * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
+ * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
+ */
     i8x16_narrow_i16x8_u: byte`\xfd\x66`,
     /**
      * Rounds each lane of an `f32x4` vector up to the nearest integer.
@@ -1821,7 +1753,7 @@ export const raw_instr = {
      * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
      */
     i16x8_extadd_pairwise_i16x8_u: byte`\xfd\x7f`,
-        /**
+    /**
      * Computes the absolute value of each lane in an `i16x8` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
      */
@@ -1921,7 +1853,7 @@ export const raw_instr = {
      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
      */
     i16x8_sub_sat_u: byte`\xfd\x93\x01`,
-        /**
+    /**
      * Rounds each lane of an `f64x2` vector to the nearest integer (ties to even).
      * Pops one vector and pushes a new vector where each lane is rounded.
      */
@@ -2021,7 +1953,7 @@ export const raw_instr = {
      * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
      */
     i32x4_shl: byte`\xfd\xab\x01`,
-        /**
+    /**
      * Performs an arithmetic right shift on each lane of an `i32x4` vector.
      * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
      */
@@ -2121,7 +2053,7 @@ export const raw_instr = {
      * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
      */
     i64x2_extend_high_i32x4_s: byte`\xfd\xc8\x01`,
-        /**
+    /**
      * Extends the low 2 lanes of an `i32x4` vector to 64 bits using zero extension.
      * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
      */
@@ -2221,7 +2153,7 @@ export const raw_instr = {
      * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
      */
     f32x4_neg: byte`\xfd\xe1\x01`,
-        /**
+    /**
      * Computes the square root of each lane in an `f32x4` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its square root.
      */
@@ -2321,7 +2253,7 @@ export const raw_instr = {
      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes, propagating NaNs.
      */
     f64x2_pmax: byte`\xfd\xf7\x01`,
-        /**
+    /**
      * Converts each lane of an `f32x4` vector to a signed `i32x4` vector using saturation.
      * Pops one vector and pushes a new vector where each lane is truncated to `i32` with saturation if the result exceeds the range of `i32`.
      */

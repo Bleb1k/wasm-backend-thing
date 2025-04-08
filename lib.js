@@ -1,9 +1,5 @@
 import { byte, str } from "./helpers.js";
-import { raw_instr } from "./instructions.js";
-
-/** @typedef {(ctx: Ctx) => void} Instruction */
-/** @typedef {Instruction[]} Instructions */
-/** @typedef {[args?: number[], rets?: number[]]} BlockType */
+import raw_instr from "./instructions.js";
 
 const DEBUG_COUNTER = 0
 const DEBUG = true
@@ -200,58 +196,6 @@ export const import_kind = {
   /** @type {(type: number, mutability: number) => {code: number, type: number}} */
   Global: (type, mutability = 0) => ({ code: 3, type: [type, mutability] }),
   global: 3,
-};
-
-export class Ctx {
-  code = []
-  stack = []
-  /** @type {Error} */
-  e = undefined
-  constructor() { }
-
-  try(e, fn) { this.e = e; fn(); }
-  pushBytes(bytes = []) {
-    this.push(...bytes.flat(10));
-  }
-  trap() {
-    console.error("ERROR: TODO: trap validation");
-  }
-  /**
-   * @param {number[]} byte
-   * @param {BlockType} type
-   */
-  startBlock(byte, type) {
-    const t = type.length === 0 ? null : this.getFuncTypeIndex(...type);
-    this.checkStack(type[0]);
-    this.pushBytes([byte, t ?? ((byte === raw_instr.else) ? [] : Type.result)]);
-  }
-  /**
-   * @param {BlockType} type
-   */
-  endBlock(type) {
-    this.checkStack(type[1]);
-    this.pushBytes([raw_instr.end]);
-  }
-  /**
-   * @param {Instructions} code
-   */
-  runInstructions(code) {
-    for (const instruction of code) instruction(this);
-  }
-  /** @param {?number[]} type */
-  checkStack(type) {
-    if (!type) {
-      this.e.message = "No type to check."
-      return console.error(this.e)
-    }
-    if (
-      type.length !== this.stack.length
-      || type.some((v, i) => v !== this.stack[i])
-    ) {
-      this.e.message = `Expected to have [${type}] on stack, but found [${this.stack}]`
-      return console.error(this.e)
-    }
-  }
 };
 
 export default {
