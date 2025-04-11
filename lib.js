@@ -74,7 +74,7 @@ const section = {
 /**
  * Encodes a value into LEB128 format.
  *
- * @param {string} type - The type of the value, e.g., "u32" for unsigned 32-bit or "s32" for signed 32-bit.
+ * @param {string} type - The type of the value, e.g., "u32" for unsigned 32-bit or "i32" for signed 32-bit.
  * @param {number|bigint} value - The value to encode. Can be a number or a bigint.
  * @returns {number[]} - The LEB128-encoded value.
  *
@@ -92,12 +92,12 @@ const section = {
  *
  * @example
  * // Encode a signed 32-bit integer
- * encodeLEB128("s32", -1); // [ 127 ]
+ * encodeLEB128("i32", -1); // [ 127 ]
  */
 export function encodeLEB128(type, value) {
-  const match = type.match(/^([su])(\d+)$/);
+  const match = type.match(/^([iu])(\d+)$/);
   if (!match) {
-    throw new Error(`Invalid type format: ${type}. Expected format like "u32" or "s32".`);
+    throw new Error(`Invalid type format: ${type}. Expected format like "u32" or "i32".`);
   }
 
   const [_, encodingType, bitWidthStr] = match;
@@ -107,7 +107,7 @@ export function encodeLEB128(type, value) {
     throw new Error(`Invalid bit width: ${N}. Bit width must be greater than 0.`);
   }
 
-  const isSigned = encodingType === 's';
+  const isSigned = encodingType === 'i';
   const maxValue = isSigned ? BigInt(2 ** (N - 1)) - 1n : BigInt(2 ** N) - 1n;
   const minValue = isSigned ? -BigInt(2 ** (N - 1)) : 0n;
 

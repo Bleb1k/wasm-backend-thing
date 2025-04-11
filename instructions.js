@@ -1,10 +1,5 @@
 import { byte } from "./helpers.js";
 // deno-lint-ignore no-unused-vars
-import { Type, Ctx, encodeLEB128 } from "./lib.js";
-
-/** @typedef {Array<(ctx: any) => void>} Instructions */
-/** @typedef {[args?: number[], rets?: number[]]} BlockType */
-/** @typedef {(ctx: Ctx) => void} Instruction */
 
 /**
  * Manually transcribed 436 wasm instructions!

@@ -56,7 +56,7 @@ app.newImport("foo", [
  *   - if types are the same, adds them
  * 5. app.function parses returned values
  */
-const add_50 = app.function((x = W.I32.param("x")) => {
+const add_100 = app.function((x = W.I32.param("x")) => {
   W.I32.const(50)
   return x.add(50).add()
 })
