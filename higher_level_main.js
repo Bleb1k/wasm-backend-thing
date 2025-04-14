@@ -25,10 +25,91 @@ const app = W.App.init()
  *   - pops value on the stack
  *   - if types are the same, adds them
  * 5. app.function parses returned values
+ * The hard part is: how these manipulations (on global context) should be performed?
+ * Should it store all manipulations in a tree like structure?
+ * Should it simply dump all binary instructions, checking along the way?
+ * Should it utilize something I don't know of??? this is hard..
+ * And how should I design global context?
+ * Sure for now I just put my app in current_app and that's it
+ * But what should GlobalContext do exactly?
+ * For that I should look into... compilation? comp.optimizations? ask owl? cindy? idfk..
+ * I hit a wall..
+ *
+ * Lemme go back through my notes.. What did I exactly mean by "function builder"
+ * I think what I was thinking of is a scope that keeps track of local variables and a stack
+ * But also, unlike just "scope" it would allow to register sequences of instructions as ast expressions
+ * so if I do something like this:
+ * I32.const(50)
+ * I32.const(5).add()
+ * it (internally) would transform into
+ * I32.const(5).add(I32.const(50))
+ * since I32.const(50) would be popped from the stack as a default value (woah, progress!)
+ * but how would I store something like
+ * const a = I32.param("a")
+ * I32.const(5).add(a)
+ * I should have a differentiation of comptime known values from comptime unknown?
+ * How would this help?
+ * Maybe what I want is a limited interpreter that can't do anything for inputs?
+ *   (params or imported functions that have outputs)
+ * It would be pretty straightforwart to do so.. but what will it give me?
+ * let's set up another example
+ * const x = I32.param("x")
+ * const a = I32.const(50)
+ * const b = I32.const(25)
+ * return I32.const(5).add(x._).sub(a)
+ * it will only use what is returned, so, dead code elimination is natural,
+ * and no stack is needed in global context (for const manipulation)
+ *
+ * i32{5} // x, a, b are already known
+ * i32{"i32_add", 5, x} // so, 'l' + 'r'
+ * i32{"i32_add", -45, x} // addition/subtraction can be performed in any order, so we sub from any known number.
+ * 
+ * If I were to do it like that, the need for scope is almost mitigated
+ *
+ * let's create something harder (a square function that only uses adds)
+ * const x = U32.param("x")
+ * const y = U32.local("y").set(x._)
+ * const z = U32.local("z")
+ * W.while(() => y._.gt(0), () => {
+ *   y._ = y._.sub(1)
+ *   z._ = z._.add(x)
+ * })
+ * return z._
+ * 
+ * what is '_' u ask? it's actually well hidden .set() and .load()
+ * why use .set() and .load()?
+ * because it's exactly like ref/deref in other low level languages
+ * so you simply must have it
+ *
+ * step-by-step top-to-bottom, and then unrolling on return:
+ * // this is cooler since we go into ssa (static single assignment) territory
+ * 1.
+ * local x: U32{?}
+ * local y: U32{deref x}
+ * local z:  U32{0}
+ * 2.
+ * block {
+ *   loop {
+ *     // loop label
+ *     br_if y == 0 block
+ *     local y: u32{deref x - 1}
+ *     local z: u32{deref x + deref z}
+ *     br loop
+ *   }
+ *  // block label
+ * }
+ * 3.
+ * ret deref z
+ *
+ * I'm tired of this, let's just create simple direct translation compiler
+ * meta-capabilities will be provided by allowing javascript
  */
 const add_100 = app.function((x = W.I32.param("x")) => {
-  W.I32.const(50);
-  return x.add(50).add();
+  W.I32.const(50)
+  // W.Block.pop(W.I32).push(W.I32)(() => {
+  //   x._ = x._.add()
+  // })
+  return x._.add(50).add();
 }).export("add_100");
 
 // console.log(add_100._(25)) // error, not compiled yet
