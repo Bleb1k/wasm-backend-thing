@@ -38,7 +38,7 @@ import { encodeLEB128 } from "./lib.js";
 export class Num {
   /** @type {"stack" | "local" | "global" | "memory"} */
   #storage = "stack";
-  /** @type {number[]|I32|I64|U32|U64|F32|F64} a number or pointer */
+  /** @type {number|I32|I64|U32|U64|F32|F64} a number or pointer */
   #value;
   /** @type {string} */
   #type;
@@ -53,7 +53,7 @@ export class Num {
       this.#type = type + "*";
       this.#storage = "local";
     } else {
-      this.#value = encodeLEB128(type, value);
+      this.#value = value;
       this.#type = type;
       this.#storage = "stack";
     }
@@ -450,14 +450,6 @@ export class F32 extends Float {
   }
 }
 
-/** @type {
-  I32.const |
-  I64.const |
-  U32.const |
-  U64.const}
- */
-let a
-
-export default W = {
+export default {
   I32, I64, U32, U64
 }

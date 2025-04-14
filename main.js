@@ -2,8 +2,8 @@
  * TODO: Add debug info support (names and labels)
  */
 
-import app, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
-import instr, raw_instr from "./instructions.js";
+import App, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
+import instr from "./instructions.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -11,6 +11,9 @@ import instr, raw_instr from "./instructions.js";
 //   ["some_func", import_kind.Func([Type.i32], [Type.i64])],
 //   ["some_var", import_kind.Global(Type.f64, mutability.yes)],
 // ]);
+
+const app = new App()
+
 app.newImport("foo", [
   ["bar", import_kind.Func([Type.f32])],
   ["my_table", import_kind.Table(Type.funcref, 10)],
@@ -28,13 +31,14 @@ app.newImport("foo", [
 //   { export: "addTwo" },
 // );
 
-// app.newFunction([[], [Type.i32]], [], [
-//   instruction.i32_const, encodeLEB128("s32", 123),
-//   instruction.i32_const, encodeLEB128("s32", 123),
-//   instruction.call, addTwo
-// ], { });
+app.newFunction([[Type.i32], [Type.i32]], [[Type.f32, 23]], [
+  [instr.local_get, 0],
+  [instr.i32_const, encodeLEB128("i32", 123)],
+  instr.i32_add,
+], { export: "foo" });
 
-// app.function((x = W.I32.param("x"), y = W.I64.param("y")) => {
+// new format:
+// app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);
 //   return [x, x, y];
 // })
@@ -56,10 +60,10 @@ app.newImport("foo", [
  *   - if types are the same, adds them
  * 5. app.function parses returned values
  */
-const add_100 = app.function((x = W.I32.param("x")) => {
-  W.I32.const(50)
-  return x.add(50).add()
-})
+// const add_100 = app.function((x = W.I32.param("x")) => {
+//   W.I32.const(50)
+//   return x.add(50).add()
+// })
 
 const { instance, module } = await app.compile({
   foo: {
@@ -70,7 +74,7 @@ const { instance, module } = await app.compile({
   }
 });
 
-console.log(instance.exports.true(), module);
+console.log(instance.exports, module);
 
 // console.log(instance.exports.addTwo(1,-2))
 

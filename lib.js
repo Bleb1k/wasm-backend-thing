@@ -1,10 +1,34 @@
 import { byte, str } from "./helpers.js";
+import instructions from "./instructions.js";
 import raw_instr from "./instructions.js";
 
-const DEBUG_COUNTER = 0
-const DEBUG = true
-  ? (...args) => args.forEach((v) => console.log(DEBUG_COUNTER++, v))
+const IS_DEBUG = true
+const DEBUG = IS_DEBUG
+  ? (start, arr = [], what) => console.log(`${what ? "- " + what + ":\n" : ""}${[...arr].map(v => {
+    let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
+    val = typeof val === "number" || typeof val === "bigint" ? val.toString(16).padEnd(4, " ")
+      + (val > 9 ? ` (${val})` : "") : val
+    return v instanceof Array && v.length === 3 && typeof v[2] === "number"
+      ? `${(start += v[2]) - v[2]}: ${val}`.padEnd(30, " ") + v[1]
+      : v instanceof Array && v.length === 2
+        ? `${(start += 1) - 1}: ${val}`.padEnd(30, " ") + v[1]
+        : v instanceof Array && v.length === 0
+          ? ""
+          : `${(start += 1) - 1}: ${val}`
+  }
+  ).filter(v => v).join("\n")
+    }`)
   : (..._) => void _
+const debug_byte = (byte_str) => debug_byte_arr(byte(byte_str))
+const debug_byte_arr = (arr) => arr.flat(10).map(n => n.toString(16).padStart(2, 0)).reduce((acc, v) => {
+  const cur_str = acc.pop()
+  if (cur_str.length < 4)
+    acc.push(cur_str + v)
+  else
+    acc.push(cur_str, v)
+  return acc
+}, [""]).join(" ")
+const debug_str = (byte_arr) => '"' + byte_arr.map(v => String.fromCodePoint(v)).join("") + '"'
 
 export const Type = {
   // Number type
@@ -148,10 +172,39 @@ export function encodeLEB128(type, value) {
       }
     }
   }
-  
+
   return result;
 }
 const leb = encodeLEB128
+function decodeLEB128(buffer, offset = 0, isSigned = false) {
+    let result = 0;
+    let shift = 0;
+    let byte;
+
+    do {
+        if (offset >= buffer.length) {
+            console.error(new Error("Buffer underflow while decoding LEB128"));
+            return {value: undefined, bytesRead: 0}
+        }
+
+        byte = buffer[offset++];
+        result |= (byte & 0x7F) << shift;
+        shift += 7;
+    } while ((byte & 0x80) !== 0);
+
+    if (isSigned) {
+        // Determine the sign bit position
+        const signBitPosition = shift - 7;
+        // Check if the sign bit is set
+        if ((result & (1 << signBitPosition)) !== 0) {
+            // Sign extend the result
+            result |= -(1 << shift);
+        }
+    }
+
+    return { value: result, bytesRead: offset - (buffer.byteOffset || 0) };
+}
+const unleb = decodeLEB128
 
 function limits(min, max) {
   if (max === undefined) {
@@ -198,13 +251,17 @@ export const import_kind = {
   global: 3,
 };
 
-export default {
-  start_fn_index: -1,
-  imports: [],
-  functions_count: 0,
-  funcs: [],
-  exports: [],
-  types: { count: 0 },
+export default class {
+  start_fn_index = -1
+  imports = []
+  functions_count = 0
+  funcs = []
+  exports = []
+  types = { count: 0 }
+
+  #exe = []
+
+  constructor() { }
 
   getFuncTypeIndex(args = [], rets = []) {
     const type = Type.Func(args, rets)
@@ -213,7 +270,7 @@ export default {
       this.types[this.types.count++] = type;
     }
     return this.types[type]
-  },
+  }
 
   /**
    * @param {string} namespace
@@ -237,7 +294,7 @@ export default {
         }
       }
     }
-  },
+  }
 
   /**
      * @param {number} min in pages (1 page = 64kb)
@@ -259,7 +316,7 @@ export default {
         0, // memory index (always zero, until specs allow more mems)
       ]);
     }
-  },
+  }
 
   /**
   * @param {[args?: number[], rets?: number[]]} type
@@ -304,130 +361,208 @@ export default {
     code.push(raw_instr.end)
     this.funcs.push({ type, locals, code });
     return this.functions_count - 1
-  },
+  }
 
   assembleTypeSection() {
     // const types = this.types;
-    const buf = [];
-    let size = 1;
+    let size_num = 1;
+    for (let i = 0; i < this.types.count; i++)
+      size_num += this.types[i].length
+    const size = leb("u32", size_num)
+
+    DEBUG(this.#exe.length, [
+      [section.type, "section_type"],
+      [size, "section_size", size.length],
+      [this.types.count, "count"],
+    ], "Type section")
+    
+    this.#exe.push(section.type, ...size, this.types.count)
+
     for (let i = 0; i < this.types.count; i++) {
-      buf.push(this.types[i]);
-      size += this.types[i].length
+      const t = this.types[i];
+      let c = 1, io = 0
+
+      DEBUG(this.#exe.length, t.map(v =>
+        c-- > 0 ? [v, Type[v]] : [c = v, io++ ? "output_count" : "input_count"]
+      ), `Type ${i}`)
+
+      this.#exe.push(...t)
     }
-    // for (const func of this.funcs) {
-    //   const t = Type.Func(...func.type);
-    //   // if (types[t] !== undefined) continue;
-    //   // types[t] = buf.push(t) - 1
-    //   buf.push(t);
-    //   size += t.length;
-    // }
-    const result = [section.type, size, this.types.count, buf].flat(10);
-    DEBUG(...result)
-    return result
-  },
+  }
 
   assembleImportSection() {
-    const buf = []
-    // console.log("TODO: import section");
-    for (const imprt of this.imports) {
-      const res = [...str([imprt.namespace]), ...str([imprt.name]), imprt.kind.code]
-      switch (imprt.kind.code) {
-        case import_kind.func:
-          // console.log("yay", imprt, imprt.kind.type, Type.Func(...imprt.kind.func_type), this.types[Type.Func(...imprt.kind.func_type)])
-          res.push(this.types[Type.Func(...imprt.kind.func_type)])
-          break;
-        default:
-          res.push(imprt.kind.type)
-        // console.log(imprt.kind.type)
-        // console.warn(`skipping assembling '${imprt.namespace}.${imprt.name}' because it is unhandled :(`)
-        // console.log("---------------")
-      }
-      // console.log("res:", res)
-      buf.push(res)
-    }
-    // console.log(buf)
-    const count = buf.length
-    const res = buf.flat(10);
-    const size = res.length + 1
-    // console.log(res)
-    // console.log("res:", [section.import, size, count, ...res].map(n => n.toString(16).padStart(2,0)).join())
-    return [section.import, size, count, ...res];
-  },
+    // const buf = []
+    console.log("TODO: import section");
+    // for (const imprt of this.imports) {
+    //   const res = [...str([imprt.namespace]), ...str([imprt.name]), imprt.kind.code]
+    //   switch (imprt.kind.code) {
+    //     case import_kind.func:
+    //       // console.log("yay", imprt, imprt.kind.type, Type.Func(...imprt.kind.func_type), this.types[Type.Func(...imprt.kind.func_type)])
+    //       res.push(this.types[Type.Func(...imprt.kind.func_type)])
+    //       break;
+    //     default:
+    //       res.push(imprt.kind.type)
+    //     // console.log(imprt.kind.type)
+    //     // console.warn(`skipping assembling '${imprt.namespace}.${imprt.name}' because it is unhandled :(`)
+    //     // console.log("---------------")
+    //   }
+    //   // console.log("res:", res)
+    //   buf.push(res)
+    // }
+    // // console.log(buf)
+    // const count = buf.length
+    // const res = buf.flat(10);
+    // const size = res.length + 1
+    // // console.log(res)
+    // // console.log("res:", [section.import, size, count, ...res].map(n => n.toString(16).padStart(2,0)).join())
+    // return [section.import, size, count, ...res];
+  }
 
   assembleFunctionSection() {
-    return this.funcs.length ? [
-      section.function,
-      this.funcs.length + 1, // section length
-      this.funcs.length, // function count
-      this.funcs.map((fn) => this.types[Type.Func(fn.type)]),
-    ].flat(2) : [];
-  },
+    const size = leb("u32", this.funcs.length + 1)
+
+    DEBUG(this.#exe.length, [
+      [section.function, "section_type"],
+      [size.length > 1 ? debug_byte_arr(size) : size[0].toString(16), "section_size", size.length],
+      [this.funcs.length, "count"],
+      []
+    ], "Function section")
+
+    this.#exe.push(section.function, ...size, this.funcs.length)
+
+    DEBUG(this.#exe.length, this.funcs.map((v, i) =>
+      [this.types[Type.Func(...v.type)], `Function ${i} type index`, ]
+    ), "Funcs")
+
+    this.#exe.push(...this.funcs.map((fn) => this.types[Type.Func(...fn.type)]))
+  }
 
   assembleTableSection() {
     console.log("TODO: table section");
-    return [];
-  },
+  }
 
   assembleMemorySection() {
-    return this.memory ? [
-      section.memory,
-      this.memory.length + 1,
-      1,
-      ...this.memory,
-    ] : [];
-  },
+    if (!this.memory) return;
+    
+    DEBUG(this.#exe.length, [
+      [section.memory, "section_type"],
+      [(this.memory.length ?? 0) + 1, "section_size"],
+      [1, "count"],
+    ], "Memory section")
+
+    this.#exe.push(section.memory, this.memory.length + 1, 1)
+
+    let val, val2
+
+    if (IS_DEBUG) {
+      let foo = unleb(this.memory, 1)
+      val = foo.value
+      foo = unleb(this.memory, 1+foo.bytesRead)
+      val2 = foo.value
+    }
+
+    DEBUG(this.#exe.length, [
+      [this.memory[0], "limit_type"],
+      [val, "min"],
+      val2 ? [val2, "max"] : [],
+    ], "memory_limits")
+
+    this.#exe.push(...this.memory)
+  }
 
   assembleGlobalSection() {
     console.log("TODO: global section");
-    return [];
-  },
+  }
 
   assembleExportSection() {
-    const buf = this.exports.reduce((a, b) => [...a, b], []).flat(2);
-    return [section.export, buf.length + 1, this.exports.length, ...buf];
-  },
+    const buf = this.exports.reduce((acc, v) => acc + v.length, 0);
+    
+    DEBUG(this.#exe.length, [
+      [section.export, "section_type"],
+      [buf + 1, "section_size"],
+      [this.exports.length, "count"],
+    ], "Export section")
+
+    this.#exe.push(section.export, buf + 1, this.exports.length)
+
+    console.log("- Exports:")
+    this.exports.forEach((v, i) => {
+      DEBUG(this.#exe.length, [
+        [v[0], "string length"],
+        [debug_str(v.slice(1, unleb(v).value+1)), "export name", v[0]],
+        [v[v[0] + 1], `export kind (${export_kind[v[v[0] + 1]]})`],
+        [v[v[0] + 2], "id"],
+      ], `Export ${i}`)
+      
+      this.#exe.push(...v)
+    })
+  }
 
   assembleStartSection() {
     console.log("TODO: start section");
     return [];
-  },
+  }
 
   assembleElementSection() {
     console.log("TODO: element section");
     return [];
-  },
+  }
 
   assembleCodeSection() {
-    const ctx = new Ctx();
     function assembleFuncBody(func) {
       const fn_buf = [
         func.locals.length,
         ...func.locals.flatMap(([type, count]) => [count, type]),
         ...func.code.flat(10),
       ];
-      // console.log("foo", func, fn_buf)
-      return [...encodeLEB128("u32", fn_buf.length), ...fn_buf];
+      return [fn_buf.length, ...fn_buf];
     }
-    const funcs = this.funcs.flatMap(assembleFuncBody);
-    const ret = this.funcs.length ? [
+    const funcs = this.funcs.map(assembleFuncBody);
+    
+    DEBUG(this.#exe.length, [
+      [section.code, "section_type"],
+      [
+        funcs.reduce((acc, v) => acc + v[0], 0) +
+          funcs.reduce((acc, v, i) => acc + (funcs[i] = leb("u32", v[0])).length, 0),
+        "section_size"
+      ],
+      [funcs.length, "count"]
+    ], "Code section")
+
+    this.#exe.push(
+      section.code,
+      ...encodeLEB128("u32", funcs.length + 1),
+      this.funcs.length,      
+    )
+
+    this.funcs.forEach((func, i) => {
+      DEBUG(this.#exe.length, [
+        [func.locals.length, "local declarations count"],
+        ...func.locals.map(([type, count]) => [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]),
+        ...func.code.map(v => {
+          const first_is_instr = v[0] instanceof Array
+          if (first_is_instr)
+            return [debug_byte_arr(v), `${instructions[v[0]]} ${unleb(v[1]).value}`, v.flat(10).length]
+          return [debug_byte_arr(v), instructions[v]]
+        })
+      ],`Function ${i}`)
+    })
+
+    this.#exe.push(...(this.funcs.length ? [
       section.code,
       ...encodeLEB128("u32", funcs.length + 1),
       this.funcs.length,
       ...funcs,
-    ] : [];
-    // console.log(ret.map((n, i) => `${i.toString().padStart(3)}: ${n.toString().padEnd(4)}(${raw_instr[n]})`).join('\n'))
-    return ret
-  },
+    ] : []));
+  }
 
   assembleDataSection() {
     console.log("TODO: data section");
-    return [];
-  },
+  }
 
   assembleDataCountSection() {
     console.log("TODO: data count section");
-    return [];
-  },
+  }
   /**
    * TODO: labels and debug info
    *
@@ -442,31 +577,53 @@ export default {
    */
   assembleNameSection() {
     console.log("TODO: name section");
-    return [];
-  },
+  }
 
   assembleExecutable() {
     // console.log(this.types, 12345)
-    return new Uint8Array(
-      [
-        byte`\x00asm\x01\x00\x00\x00`, // magic + version
-        // section 0: custom // this can be inserted between any other section going forward
-        this.assembleTypeSection(),
-        this.assembleImportSection(),
-        this.assembleFunctionSection(),
-        this.assembleTableSection(),
-        this.assembleMemorySection(),
-        this.assembleGlobalSection(),
-        this.assembleExportSection(),
-        this.assembleStartSection(),
-        this.assembleElementSection(),
-        this.assembleCodeSection(),
-        this.assembleDataSection(),
-        this.assembleDataCountSection(),
-        this.assembleNameSection(),
-      ].flat(),
-    );
-  },
+    DEBUG(this.#exe.length, [
+      [debug_byte`\x00asm`, "Magic", 4],
+      [debug_byte`\x01\x00\x00\x00`, "Version"]
+    ], "Program start")
+    this.#exe.push(...byte`\x00asm\x01\x00\x00\x00`)
+
+    this.assembleTypeSection()
+    this.assembleImportSection()
+    this.assembleFunctionSection()
+    this.assembleTableSection()
+    this.assembleMemorySection()
+    this.assembleGlobalSection()
+    this.assembleExportSection()
+    this.assembleStartSection()
+    this.assembleElementSection()
+    this.assembleCodeSection()
+    this.assembleDataSection()
+    this.assembleDataCountSection()
+    this.assembleNameSection()
+
+    console.log(this.#exe.map((v,i) => [i,v]))
+
+    return new Uint8Array(this.#exe)
+    // return new Uint8Array(
+    //   [
+    //     byte`\x00asm\x01\x00\x00\x00`, // magic + version
+    //     // section 0: custom // this can be inserted between any other section going forward
+    //     this.assembleTypeSection(),
+    //     this.assembleImportSection(),
+    //     this.assembleFunctionSection(),
+    //     this.assembleTableSection(),
+    //     this.assembleMemorySection(),
+    //     this.assembleGlobalSection(),
+    //     this.assembleExportSection(),
+    //     this.assembleStartSection(),
+    //     this.assembleElementSection(),
+    //     this.assembleCodeSection(),
+    //     this.assembleDataSection(),
+    //     this.assembleDataCountSection(),
+    //     this.assembleNameSection(),
+    //   ].flat(),
+    // );
+  }
 
   /**
    * @param {WebAssembly.Imports?} importObject
@@ -474,13 +631,13 @@ export default {
    */
   compile(importObject = {}) {
     const exe = this.assembleExecutable()
-    console.log(`exe:\n${Array.from(exe).map((n, i) =>
-      i.toString().padStart(4, '0') + ": " + n.toString(16).padStart(2, "0") + ` (${raw_instr[n]})`
-    ).join("\n")}`
-    )
+    // console.log(`exe:\n${Array.from(exe).map((n, i) =>
+    //   i.toString().padStart(4, '0') + ": " + n.toString(16).padStart(2, "0") + ` (${raw_instr[n]})`
+    // ).join("\n")}`
+    // )
     // console.log("base64:", btoa(exe))
     console.log(`Binary size: ${exe.byteLength}`)
 
     return WebAssembly.instantiate(exe, importObject);
-  },
+  }
 };
