@@ -330,7 +330,7 @@ export default class {
       this.exports.push([
         ...str([optional.export]),
         export_kind.func,
-        this.functions_count - 1,
+        this.funcs.length,
       ]);
     }
     if (optional?.start) {
@@ -360,7 +360,7 @@ export default class {
 
     code.push(raw_instr.end)
     this.funcs.push({ type, locals, code });
-    return this.functions_count - 1
+    return this.funcs.length - 1
   }
 
   assembleTypeSection() {
@@ -485,7 +485,7 @@ export default class {
 
     this.#exe.push(section.export, buf + 1, this.exports.length)
 
-    console.log("- Exports:")
+    if (IS_DEBUG) console.log("- Exports:")
     this.exports.forEach((v, i) => {
       DEBUG(this.#exe.length, [
         [v[0], "string length"],
@@ -500,12 +500,10 @@ export default class {
 
   assembleStartSection() {
     console.log("TODO: start section");
-    return [];
   }
 
   assembleElementSection() {
     console.log("TODO: element section");
-    return [];
   }
 
   assembleCodeSection() {
@@ -515,7 +513,7 @@ export default class {
         ...func.locals.flatMap(([type, count]) => [count, type]),
         ...func.code.flat(10),
       ];
-      return [fn_buf.length, ...fn_buf];
+      return [...leb("u32", fn_buf.length), ...fn_buf];
     }
     const funcs = this.funcs.map(assembleFuncBody);
     
@@ -523,7 +521,7 @@ export default class {
       [section.code, "section_type"],
       [
         funcs.reduce((acc, v) => acc + v[0], 0) +
-          funcs.reduce((acc, v, i) => acc + (funcs[i] = leb("u32", v[0])).length, 0),
+          funcs.reduce((acc, v) => acc + unleb(v[0]).bytesRead, 0),
         "section_size"
       ],
       [funcs.length, "count"]
@@ -531,12 +529,13 @@ export default class {
 
     this.#exe.push(
       section.code,
-      ...encodeLEB128("u32", funcs.length + 1),
-      this.funcs.length,      
+      ...encodeLEB128("u32", funcs.flat().length + 1),
+      this.funcs.length,
     )
 
     this.funcs.forEach((func, i) => {
       DEBUG(this.#exe.length, [
+        [unleb(funcs[i]).value, `function len`, unleb(funcs[i]).bytesRead],
         [func.locals.length, "local declarations count"],
         ...func.locals.map(([type, count]) => [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]),
         ...func.code.map(v => {
@@ -548,12 +547,7 @@ export default class {
       ],`Function ${i}`)
     })
 
-    this.#exe.push(...(this.funcs.length ? [
-      section.code,
-      ...encodeLEB128("u32", funcs.length + 1),
-      this.funcs.length,
-      ...funcs,
-    ] : []));
+    this.#exe.push(...funcs.flat());
   }
 
   assembleDataSection() {
@@ -601,7 +595,7 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    console.log(this.#exe.map((v,i) => [i,v]))
+    if (IS_DEBUG) console.log(this.#exe.map((v,i) => [i,v]))
 
     return new Uint8Array(this.#exe)
     // return new Uint8Array(
@@ -636,7 +630,7 @@ export default class {
     // ).join("\n")}`
     // )
     // console.log("base64:", btoa(exe))
-    console.log(`Binary size: ${exe.byteLength}`)
+    // console.log(`Binary size: ${exe.byteLength}`)
 
     return WebAssembly.instantiate(exe, importObject);
   }

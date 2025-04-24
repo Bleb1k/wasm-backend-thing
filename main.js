@@ -20,21 +20,22 @@ app.newImport("foo", [
   ["memory", import_kind.Mem(1)],
   ["my_global", import_kind.Global(Type.i32)]
 ])
-// const addTwo = app.newFunction(
-//   [[Type.i32, Type.i32], [Type.i32]],
-//   [],
-//   [
-//     [instruction.local_get, 0x00],
-//     [instruction.local_get, 0x01],
-//     instruction.i32_add,
-//   ],
-//   { export: "addTwo" },
-// );
+
+const addTwo_wasm = app.newFunction(
+  [[Type.i32, Type.i32], [Type.i32]],
+  [],
+  [
+    [instr.local_get, 0x00],
+    [instr.local_get, 0x01],
+    instr.i32_add,
+  ],
+  { export: "addTwo" },
+);
 
 app.newFunction([[Type.i32], [Type.i32]], [[Type.f32, 23]], [
   [instr.local_get, 0],
   [instr.i32_const, encodeLEB128("i32", 123)],
-  instr.i32_add,
+  [instr.call, addTwo_wasm],
 ], { export: "foo" });
 
 // new format:
