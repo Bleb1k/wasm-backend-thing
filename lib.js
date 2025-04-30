@@ -1,5 +1,5 @@
 import { byte, str } from "./helpers.js";
-import instructions from "./instructions.js";
+import W from "./instructions.js";
 import raw_instr from "./instructions.js";
 
 const IS_DEBUG = true
@@ -9,12 +9,12 @@ const DEBUG = IS_DEBUG
     val = typeof val === "number" || typeof val === "bigint" ? val.toString(16).padEnd(4, " ")
       + (val > 9 ? ` (${val})` : "") : val
     return v instanceof Array && v.length === 3 && typeof v[2] === "number"
-      ? `${(start += v[2]) - v[2]}: ${val}`.padEnd(30, " ") + v[1]
+      ? `${((start += v[2]) - v[2]).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
       : v instanceof Array && v.length === 2
-        ? `${(start += 1) - 1}: ${val}`.padEnd(30, " ") + v[1]
+        ? `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
         : v instanceof Array && v.length === 0
           ? ""
-          : `${(start += 1) - 1}: ${val}`
+          : `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`
   }
   ).filter(v => v).join("\n")
     }`)
@@ -206,6 +206,41 @@ function decodeLEB128(buffer, offset = 0, isSigned = false) {
 }
 const unleb = decodeLEB128
 
+function isPowerOf2(val) {
+  return val === 1 << (31-Math.clz32(val))
+}
+
+function encode_v128(value = 0n) {
+  const result = []
+  switch (typeof value) {
+  case "object":
+    if (!(value instanceof Array)) throw new Error("Only arrays are supported")
+    if (!(isPowerOf2(value.length)) || value.length > 16) throw new Error("Only arrays with 2**n elements are supported: [64x2, 32x4, 16x8, 8x16]")
+    if (!(Number.isInteger(value[0]))) throw new Error("Only vectors of integers are supported for now")
+    for (let num of value) {
+      for (let i = 0; i < (16/value.length); i++) {
+        result.push(num & 0xff)
+        num >>>= 16
+      }
+    }
+    break;
+  case "boolean":
+  case "string":
+    value = BigInt(value)
+  case "bigint":
+  case "number":
+    for (let i = 0; i < 16; i++) {
+      result.push(value & 0xff)
+      value >>>= 16
+    }
+    break
+  case "symbol":
+  case "undefined":
+  case "function":
+  }
+  return result
+}
+
 function limits(min, max) {
   if (max === undefined) {
     return [0, ...leb("u32", min)]
@@ -258,6 +293,7 @@ export default class {
   funcs = []
   exports = []
   types = { count: 0 }
+  globals = []
 
   #exe = []
 
@@ -363,7 +399,30 @@ export default class {
     return this.funcs.length - 1
   }
 
+  newGlobal(type, value = 0, mutability = 0) {
+    switch (type) {
+      case Type.i32:
+        this.globals.push({type, value, val_bytes: [W.i32_const, leb("i32", value), W.end], mutability})
+        break
+      case Type.i64:
+        this.globals.push({type, value, val_bytes: [W.i64_const, leb("i64", value), W.end], mutability})
+        break
+      case Type.v128:
+        this.globals.push({type, value, val_bytes: [W.v128_const, encode_v128(value), W.end], mutability})
+        break
+      case Type.f32:
+      case Type.f64:
+      case Type.externref:
+      case Type.funcref:
+        throw new Error(`Unsupported type ${type}(${Type[type]})`)
+      default:
+        throw new Error(`Unknown type ${type}(${Type[type]})`)
+    }
+    return this.globals.length - 1
+  }
+
   assembleTypeSection() {
+    if (this.types.count === 0) return;
     // const types = this.types;
     let size_num = 1;
     for (let i = 0; i < this.types.count; i++)
@@ -419,6 +478,7 @@ export default class {
   }
 
   assembleFunctionSection() {
+    if (this.funcs.length === 0) return;
     const size = leb("u32", this.funcs.length + 1)
 
     DEBUG(this.#exe.length, [
@@ -471,10 +531,40 @@ export default class {
   }
 
   assembleGlobalSection() {
-    console.log("TODO: global section");
+    if (this.globals.length === 0) return;
+    const size = this.globals.reduce((acc, v) => acc + v.val_bytes.flat().length + 2, 0)
+
+    DEBUG(this.#exe.length, [
+      [section.global, "section_type"],
+      [size + 1, "section_size"],
+      [this.globals.length, "count"],
+    ], "Global section")
+
+    this.#exe.push(
+      section.global,
+      size+1,
+      this.globals.length,
+    )
+
+    this.globals.forEach((glob, i) => {
+      DEBUG(this.#exe.length, [
+        [glob.type, `type: ${Type[glob.type]}`],
+        [glob.mutability, "mutability"],
+        [debug_byte_arr(glob.val_bytes[0]), W[glob.val_bytes[0]]],
+        [debug_byte_arr(glob.val_bytes[1]), Type[glob.type]+" literal", glob.val_bytes[1].length],
+        [debug_byte_arr(glob.val_bytes[2]), W[glob.val_bytes[2]]]
+      ], `Global ${i}`)
+
+      this.#exe.push(
+        glob.type,
+        glob.mutability,
+        ...glob.val_bytes.flat()
+      )
+    })
   }
 
   assembleExportSection() {
+    if (this.exports.length === 0) return;
     const buf = this.exports.reduce((acc, v) => acc + v.length, 0);
     
     DEBUG(this.#exe.length, [
@@ -507,6 +597,7 @@ export default class {
   }
 
   assembleCodeSection() {
+    if (this.funcs.length === 0) return;
     function assembleFuncBody(func) {
       const fn_buf = [
         func.locals.length,
@@ -541,8 +632,8 @@ export default class {
         ...func.code.map(v => {
           const first_is_instr = v[0] instanceof Array
           if (first_is_instr)
-            return [debug_byte_arr(v), `${instructions[v[0]]} ${unleb(v[1]).value}`, v.flat(10).length]
-          return [debug_byte_arr(v), instructions[v]]
+            return [debug_byte_arr(v), `${W[v[0]]} ${unleb(v[1]).value}`, v.flat(10).length]
+          return [debug_byte_arr(v), W[v]]
         })
       ],`Function ${i}`)
     })
@@ -595,7 +686,7 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    if (IS_DEBUG) console.log(this.#exe.map((v,i) => [i,v]))
+    if (IS_DEBUG) console.log(this.#exe.map((v,i) => [i, debug_byte_arr([v])]))
 
     return new Uint8Array(this.#exe)
     // return new Uint8Array(

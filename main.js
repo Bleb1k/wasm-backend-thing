@@ -14,29 +14,32 @@ import instr from "./instructions.js";
 
 const app = new App()
 
-app.newImport("foo", [
-  ["bar", import_kind.Func([Type.f32])],
-  ["my_table", import_kind.Table(Type.funcref, 10)],
-  ["memory", import_kind.Mem(1)],
-  ["my_global", import_kind.Global(Type.i32)]
-])
+// app.newImport("foo", [
+//   ["bar", import_kind.Func([Type.f32])],
+//   ["my_table", import_kind.Table(Type.funcref, 10)],
+//   ["memory", import_kind.Mem(1)],
+//   ["my_global", import_kind.Global(Type.i32)]
+// ])
 
-const addTwo_wasm = app.newFunction(
-  [[Type.i32, Type.i32], [Type.i32]],
-  [],
-  [
-    [instr.local_get, 0x00],
-    [instr.local_get, 0x01],
-    instr.i32_add,
-  ],
-  { export: "addTwo" },
-);
+const counter = app.newGlobal(Type.i32)
+const lol = app.newGlobal(Type.v128, [10, 20, 30, 48])
 
-app.newFunction([[Type.i32], [Type.i32]], [[Type.f32, 23]], [
-  [instr.local_get, 0],
-  [instr.i32_const, encodeLEB128("i32", 123)],
-  [instr.call, addTwo_wasm],
-], { export: "foo" });
+// const addTwo_wasm = app.newFunction(
+//   [[Type.i32, Type.i32], [Type.i32]],
+//   [],
+//   [
+//     [instr.local_get, 0x00],
+//     [instr.local_get, 0x01],
+//     instr.i32_add,
+//   ],
+//   { export: "addTwo" },
+// );
+
+// app.newFunction([[Type.i32], [Type.i32]], [[Type.f32, 23]], [
+//   [instr.local_get, 0],
+//   [instr.i32_const, encodeLEB128("i32", 123)],
+//   [instr.call, addTwo_wasm],
+// ], { export: "foo" });
 
 // new format:
 // app.function((x = W.I32.param("x")) => {
