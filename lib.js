@@ -474,7 +474,16 @@ export default class {
   }
 
   newGlobal(type, value, mutability = 0) {
-    const global_id = this.globals.length
+    let global_id = this.globals.findIndex(v =>
+      v.type === type &&
+      v.mutability === mutability &&
+      (v.type === Type.funcref
+        ? v.value === value
+        : (v.value ?? 0) === (value ?? 0))
+    )
+    if (global_id >= 0) return global_id
+    
+    global_id = this.globals.length
     switch (type) {
       case Type.i32:
         this.globals.push({ type, value, val_bytes: [W.i32_const, leb("i32", value ?? 0), W.end], mutability })
@@ -483,7 +492,7 @@ export default class {
         this.globals.push({ type, value, val_bytes: [W.i64_const, leb("i64", value ?? 0), W.end], mutability })
         break
       case Type.v128:
-        this.globals.push({ type, value, val_bytes: [W.v128_const, encode_v128(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value: value, val_bytes: [W.v128_const, encode_v128(value ?? 0), W.end], mutability })
         break
       case Type.f32:
         this.globals.push({ type, value, val_bytes: [W.f32_const, encodeIEEE754("f32", value ?? 0), W.end], mutability })
@@ -501,7 +510,7 @@ export default class {
           val_bytes: value === undefined || value === null
             ? [W.ref_null, Type.funcref, W.end]
             : [W.ref_func, value, W.end],
-          mutability
+          mutability,
         })
         break
       default:
@@ -644,7 +653,7 @@ export default class {
           (![Type.funcref, Type.externref].includes(glob.type)
             ? debug_byte_arr(glob.val_bytes[1])
             : debug_byte_arr([glob.val_bytes[1]])),
-         `${Type[glob.type]} literal`,
+          `${Type[glob.type]} literal`,
           [glob.val_bytes[1]].flat().length
         ],
         [debug_byte_arr(glob.val_bytes[2]), W[glob.val_bytes[2]]]
