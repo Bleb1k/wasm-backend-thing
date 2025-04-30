@@ -21,8 +21,20 @@ const app = new App()
 //   ["my_global", import_kind.Global(Type.i32)]
 // ])
 
-const counter = app.newGlobal(Type.i32)
-const lol = app.newGlobal(Type.v128, [10, 20, 30, 48])
+app.newGlobal(Type.i32)
+app.newGlobal(Type.i32, 10, 1)
+app.newGlobal(Type.i64)
+app.newGlobal(Type.i64, 100, 1)
+app.newGlobal(Type.f32)
+app.newGlobal(Type.f32, 10, 1)
+app.newGlobal(Type.f64)
+app.newGlobal(Type.f64, 100, 1)
+app.newGlobal(Type.externref)
+app.newGlobal(Type.externref, 0, 1)
+app.newGlobal(Type.funcref)
+app.newGlobal(Type.funcref, null, 1)
+app.newGlobal(Type.v128)
+app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 
 // const addTwo_wasm = app.newFunction(
 //   [[Type.i32, Type.i32], [Type.i32]],

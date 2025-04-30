@@ -8,13 +8,14 @@ const DEBUG = IS_DEBUG
     let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
     val = typeof val === "number" || typeof val === "bigint" ? val.toString(16).padEnd(4, " ")
       + (val > 9 ? ` (${val})` : "") : val
+    // console.log(v, v.length)
     return v instanceof Array && v.length === 3 && typeof v[2] === "number"
-      ? `${((start += v[2]) - v[2]).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+      ? `${((start += v[2]) - v[2]).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
       : v instanceof Array && v.length === 2
-        ? `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+        ? `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
         : v instanceof Array && v.length === 0
           ? ""
-          : `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`
+          : `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`
   }
   ).filter(v => v).join("\n")
     }`)
@@ -177,66 +178,139 @@ export function encodeLEB128(type, value) {
 }
 const leb = encodeLEB128
 function decodeLEB128(buffer, offset = 0, isSigned = false) {
-    let result = 0;
-    let shift = 0;
-    let byte;
+  let result = 0;
+  let shift = 0;
+  let byte;
 
-    do {
-        if (offset >= buffer.length) {
-            console.error(new Error("Buffer underflow while decoding LEB128"));
-            return {value: undefined, bytesRead: 0}
-        }
-
-        byte = buffer[offset++];
-        result |= (byte & 0x7F) << shift;
-        shift += 7;
-    } while ((byte & 0x80) !== 0);
-
-    if (isSigned) {
-        // Determine the sign bit position
-        const signBitPosition = shift - 7;
-        // Check if the sign bit is set
-        if ((result & (1 << signBitPosition)) !== 0) {
-            // Sign extend the result
-            result |= -(1 << shift);
-        }
+  do {
+    if (offset >= buffer.length) {
+      console.error(new Error("Buffer underflow while decoding LEB128"));
+      return { value: undefined, bytesRead: 0 }
     }
 
-    return { value: result, bytesRead: offset - (buffer.byteOffset || 0) };
+    byte = buffer[offset++];
+    result |= (byte & 0x7F) << shift;
+    shift += 7;
+  } while ((byte & 0x80) !== 0);
+
+  if (isSigned) {
+    // Determine the sign bit position
+    const signBitPosition = shift - 7;
+    // Check if the sign bit is set
+    if ((result & (1 << signBitPosition)) !== 0) {
+      // Sign extend the result
+      result |= -(1 << shift);
+    }
+  }
+
+  return { value: result, bytesRead: offset - (buffer.byteOffset || 0) };
 }
 const unleb = decodeLEB128
 
+function encodeIEEE754(type, value) {
+  if (typeof value !== 'number') {
+    throw new Error(`Invalid value: ${value}. Must be a number.`);
+  }
+
+  let buffer;
+  let view;
+
+  switch (type) {
+    case 'f32':
+      buffer = new ArrayBuffer(4);
+      view = new DataView(buffer);
+      view.setFloat32(0, value, true); // little-endian
+      break;
+    case 'f64':
+      buffer = new ArrayBuffer(8);
+      view = new DataView(buffer);
+      view.setFloat64(0, value, true); // little-endian
+      break;
+    default:
+      throw new Error(`Invalid type format: ${type}. Expected format like "f32" or "f64".`);
+  }
+
+  const result = [];
+  for (let i = 0; i < buffer.byteLength; i++) {
+    result.push(view.getUint8(i));
+  }
+
+  return result;
+}
+
+export function decodeIEEE754(buffer, type, offset = 0) {
+  if (!Array.isArray(buffer)) {
+    throw new Error(`Invalid buffer: ${buffer}. Must be an array of bytes.`);
+  }
+
+  if (offset < 0 || offset >= buffer.length) {
+    throw new Error(`Invalid offset: ${offset}. Offset must be within the bounds of the buffer.`);
+  }
+
+  let ab;
+  let view;
+
+  switch (type) {
+    case 'f32':
+      if (offset + 4 > buffer.length) {
+        throw new Error(`Invalid buffer length: ${buffer.length}. Expected at least 4 bytes starting from offset ${offset} for "f32".`);
+      }
+      ab = new ArrayBuffer(4);
+      view = new DataView(ab);
+      for (let i = 0; i < 4; i++) {
+        view.setUint8(i, buffer[offset + i]);
+      }
+      return view.getFloat32(0, true); // little-endian
+    case 'f64':
+      if (offset + 8 > buffer.length) {
+        throw new Error(`Invalid buffer length: ${buffer.length}. Expected at least 8 bytes starting from offset ${offset} for "f64".`);
+      }
+      ab = new ArrayBuffer(8);
+      view = new DataView(ab);
+      for (let i = 0; i < 8; i++) {
+        view.setUint8(i, buffer[offset + i]);
+      }
+      return view.getFloat64(0, true); // little-endian
+    default:
+      throw new Error(`Invalid type format: ${type}. Expected format like "f32" or "f64".`);
+  }
+}
+
 function isPowerOf2(val) {
-  return val === 1 << (31-Math.clz32(val))
+  return val === 1 << (31 - Math.clz32(val))
 }
 
 function encode_v128(value = 0n) {
   const result = []
+  console.log(value, typeof value)
   switch (typeof value) {
-  case "object":
-    if (!(value instanceof Array)) throw new Error("Only arrays are supported")
-    if (!(isPowerOf2(value.length)) || value.length > 16) throw new Error("Only arrays with 2**n elements are supported: [64x2, 32x4, 16x8, 8x16]")
-    if (!(Number.isInteger(value[0]))) throw new Error("Only vectors of integers are supported for now")
-    for (let num of value) {
-      for (let i = 0; i < (16/value.length); i++) {
-        result.push(num & 0xff)
-        num >>>= 16
+    case "object":
+      if (!(value instanceof Array)) throw new Error("Only arrays are supported")
+      if (!(isPowerOf2(value.length)) || value.length > 16) throw new Error("Only arrays with 2**n elements are supported: [64x2, 32x4, 16x8, 8x16]")
+      if (!(Number.isInteger(value[0]))) throw new Error("Only vectors of integers are supported for now")
+      for (let num of value) {
+        for (let i = 0; i < (16 / value.length); i++) {
+          result.push(num & 0xff)
+          num >>>= 16
+        }
       }
-    }
-    break;
-  case "boolean":
-  case "string":
-    value = BigInt(value)
-  case "bigint":
-  case "number":
-    for (let i = 0; i < 16; i++) {
-      result.push(value & 0xff)
-      value >>>= 16
-    }
-    break
-  case "symbol":
-  case "undefined":
-  case "function":
+      break;
+    case "boolean":
+    case "string":
+      value = typeof value !== "string"
+        ? Number(value) : Number.isInteger(Number(value))
+          ? BigInt(value) : Number(value)
+    case "bigint":
+    case "number":
+      for (let i = 0; i < 16; i++) {
+        result.push(value & 0xff)
+        value >>>= 16
+      }
+      break
+    case "symbol":
+    case "undefined":
+    case "function":
+      throw new Error("Unsupported type: " + Type[value])
   }
   return result
 }
@@ -399,26 +473,41 @@ export default class {
     return this.funcs.length - 1
   }
 
-  newGlobal(type, value = 0, mutability = 0) {
+  newGlobal(type, value, mutability = 0) {
+    const global_id = this.globals.length
     switch (type) {
       case Type.i32:
-        this.globals.push({type, value, val_bytes: [W.i32_const, leb("i32", value), W.end], mutability})
+        this.globals.push({ type, value, val_bytes: [W.i32_const, leb("i32", value ?? 0), W.end], mutability })
         break
       case Type.i64:
-        this.globals.push({type, value, val_bytes: [W.i64_const, leb("i64", value), W.end], mutability})
+        this.globals.push({ type, value, val_bytes: [W.i64_const, leb("i64", value ?? 0), W.end], mutability })
         break
       case Type.v128:
-        this.globals.push({type, value, val_bytes: [W.v128_const, encode_v128(value), W.end], mutability})
+        this.globals.push({ type, value, val_bytes: [W.v128_const, encode_v128(value ?? 0), W.end], mutability })
         break
       case Type.f32:
+        this.globals.push({ type, value, val_bytes: [W.f32_const, encodeIEEE754("f32", value ?? 0), W.end], mutability })
+        break
       case Type.f64:
+        this.globals.push({ type, value, val_bytes: [W.f64_const, encodeIEEE754("f64", value ?? 0), W.end], mutability })
+        break
       case Type.externref:
+        this.globals.push({ type, value, val_bytes: [W.ref_null, Type.externref, W.end], mutability })
+        break
       case Type.funcref:
-        throw new Error(`Unsupported type ${type}(${Type[type]})`)
+        this.globals.push({
+          type,
+          value,
+          val_bytes: value === undefined || value === null
+            ? [W.ref_null, Type.funcref, W.end]
+            : [W.ref_func, value, W.end],
+          mutability
+        })
+        break
       default:
         throw new Error(`Unknown type ${type}(${Type[type]})`)
     }
-    return this.globals.length - 1
+    return global_id
   }
 
   assembleTypeSection() {
@@ -434,7 +523,7 @@ export default class {
       [size, "section_size", size.length],
       [this.types.count, "count"],
     ], "Type section")
-    
+
     this.#exe.push(section.type, ...size, this.types.count)
 
     for (let i = 0; i < this.types.count; i++) {
@@ -491,7 +580,7 @@ export default class {
     this.#exe.push(section.function, ...size, this.funcs.length)
 
     DEBUG(this.#exe.length, this.funcs.map((v, i) =>
-      [this.types[Type.Func(...v.type)], `Function ${i} type index`, ]
+      [this.types[Type.Func(...v.type)], `Function ${i} type index`,]
     ), "Funcs")
 
     this.#exe.push(...this.funcs.map((fn) => this.types[Type.Func(...fn.type)]))
@@ -503,7 +592,7 @@ export default class {
 
   assembleMemorySection() {
     if (!this.memory) return;
-    
+
     DEBUG(this.#exe.length, [
       [section.memory, "section_type"],
       [(this.memory.length ?? 0) + 1, "section_size"],
@@ -517,7 +606,7 @@ export default class {
     if (IS_DEBUG) {
       let foo = unleb(this.memory, 1)
       val = foo.value
-      foo = unleb(this.memory, 1+foo.bytesRead)
+      foo = unleb(this.memory, 1 + foo.bytesRead)
       val2 = foo.value
     }
 
@@ -542,7 +631,7 @@ export default class {
 
     this.#exe.push(
       section.global,
-      size+1,
+      size + 1,
       this.globals.length,
     )
 
@@ -550,8 +639,14 @@ export default class {
       DEBUG(this.#exe.length, [
         [glob.type, `type: ${Type[glob.type]}`],
         [glob.mutability, "mutability"],
-        [debug_byte_arr(glob.val_bytes[0]), W[glob.val_bytes[0]]],
-        [debug_byte_arr(glob.val_bytes[1]), Type[glob.type]+" literal", glob.val_bytes[1].length],
+        [debug_byte_arr(glob.val_bytes[0]), W[glob.val_bytes[0]], glob.val_bytes[0].length],
+        [
+          (![Type.funcref, Type.externref].includes(glob.type)
+            ? debug_byte_arr(glob.val_bytes[1])
+            : debug_byte_arr([glob.val_bytes[1]])),
+         `${Type[glob.type]} literal`,
+          [glob.val_bytes[1]].flat().length
+        ],
         [debug_byte_arr(glob.val_bytes[2]), W[glob.val_bytes[2]]]
       ], `Global ${i}`)
 
@@ -566,7 +661,7 @@ export default class {
   assembleExportSection() {
     if (this.exports.length === 0) return;
     const buf = this.exports.reduce((acc, v) => acc + v.length, 0);
-    
+
     DEBUG(this.#exe.length, [
       [section.export, "section_type"],
       [buf + 1, "section_size"],
@@ -579,11 +674,11 @@ export default class {
     this.exports.forEach((v, i) => {
       DEBUG(this.#exe.length, [
         [v[0], "string length"],
-        [debug_str(v.slice(1, unleb(v).value+1)), "export name", v[0]],
+        [debug_str(v.slice(1, unleb(v).value + 1)), "export name", v[0]],
         [v[v[0] + 1], `export kind (${export_kind[v[v[0] + 1]]})`],
         [v[v[0] + 2], "id"],
       ], `Export ${i}`)
-      
+
       this.#exe.push(...v)
     })
   }
@@ -607,12 +702,12 @@ export default class {
       return [...leb("u32", fn_buf.length), ...fn_buf];
     }
     const funcs = this.funcs.map(assembleFuncBody);
-    
+
     DEBUG(this.#exe.length, [
       [section.code, "section_type"],
       [
         funcs.reduce((acc, v) => acc + v[0], 0) +
-          funcs.reduce((acc, v) => acc + unleb(v[0]).bytesRead, 0),
+        funcs.reduce((acc, v) => acc + unleb(v[0]).bytesRead, 0),
         "section_size"
       ],
       [funcs.length, "count"]
@@ -635,7 +730,7 @@ export default class {
             return [debug_byte_arr(v), `${W[v[0]]} ${unleb(v[1]).value}`, v.flat(10).length]
           return [debug_byte_arr(v), W[v]]
         })
-      ],`Function ${i}`)
+      ], `Function ${i}`)
     })
 
     this.#exe.push(...funcs.flat());
@@ -665,7 +760,7 @@ export default class {
   }
 
   assembleExecutable() {
-    // console.log(this.types, 12345)
+
     DEBUG(this.#exe.length, [
       [debug_byte`\x00asm`, "Magic", 4],
       [debug_byte`\x01\x00\x00\x00`, "Version"]
@@ -686,28 +781,9 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    if (IS_DEBUG) console.log(this.#exe.map((v,i) => [i, debug_byte_arr([v])]))
+    // if (IS_DEBUG) this.#exe.forEach((v,i) => console.log(i, debug_byte_arr([v])))
 
     return new Uint8Array(this.#exe)
-    // return new Uint8Array(
-    //   [
-    //     byte`\x00asm\x01\x00\x00\x00`, // magic + version
-    //     // section 0: custom // this can be inserted between any other section going forward
-    //     this.assembleTypeSection(),
-    //     this.assembleImportSection(),
-    //     this.assembleFunctionSection(),
-    //     this.assembleTableSection(),
-    //     this.assembleMemorySection(),
-    //     this.assembleGlobalSection(),
-    //     this.assembleExportSection(),
-    //     this.assembleStartSection(),
-    //     this.assembleElementSection(),
-    //     this.assembleCodeSection(),
-    //     this.assembleDataSection(),
-    //     this.assembleDataCountSection(),
-    //     this.assembleNameSection(),
-    //   ].flat(),
-    // );
   }
 
   /**
@@ -716,12 +792,6 @@ export default class {
    */
   compile(importObject = {}) {
     const exe = this.assembleExecutable()
-    // console.log(`exe:\n${Array.from(exe).map((n, i) =>
-    //   i.toString().padStart(4, '0') + ": " + n.toString(16).padStart(2, "0") + ` (${raw_instr[n]})`
-    // ).join("\n")}`
-    // )
-    // console.log("base64:", btoa(exe))
-    // console.log(`Binary size: ${exe.byteLength}`)
 
     return WebAssembly.instantiate(exe, importObject);
   }
