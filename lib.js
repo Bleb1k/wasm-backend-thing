@@ -207,7 +207,7 @@ function decodeLEB128(buffer, offset = 0, isSigned = false) {
 }
 const unleb = decodeLEB128
 
-function encodeIEEE754(type, value) {
+export function encodeIEEE754(type, value) {
   if (typeof value !== 'number') {
     throw new Error(`Invalid value: ${value}. Must be a number.`);
   }
@@ -280,14 +280,14 @@ function isPowerOf2(val) {
   return val === 1 << (31 - Math.clz32(val))
 }
 
-function encode_v128(value = 0n) {
+export function encode_v128(value = 0n) {
   const result = []
   console.log(value, typeof value)
   switch (typeof value) {
     case "object":
       if (!(value instanceof Array)) throw new Error("Only arrays are supported")
       if (!(isPowerOf2(value.length)) || value.length > 16) throw new Error("Only arrays with 2**n elements are supported: [64x2, 32x4, 16x8, 8x16]")
-      if (!(Number.isInteger(value[0]))) throw new Error("Only vectors of integers are supported for now")
+      if (!value.every(Number.isInteger)) throw new Error("Only vectors of integers are supported for now")
       for (let num of value) {
         for (let i = 0; i < (16 / value.length); i++) {
           result.push(num & 0xff)
@@ -486,30 +486,30 @@ export default class {
     global_id = this.globals.length
     switch (type) {
       case Type.i32:
-        this.globals.push({ type, value, val_bytes: [W.i32_const, leb("i32", value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.I32.const(value ?? 0), W.end], mutability })
         break
       case Type.i64:
-        this.globals.push({ type, value, val_bytes: [W.i64_const, leb("i64", value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.I64.const(value ?? 0), W.end], mutability })
         break
       case Type.v128:
-        this.globals.push({ type, value: value, val_bytes: [W.v128_const, encode_v128(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.V128.const(value ?? 0), W.end], mutability })
         break
       case Type.f32:
-        this.globals.push({ type, value, val_bytes: [W.f32_const, encodeIEEE754("f32", value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.F32.const(value ?? 0), W.end], mutability })
         break
       case Type.f64:
-        this.globals.push({ type, value, val_bytes: [W.f64_const, encodeIEEE754("f64", value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.F64.const(value ?? 0), W.end], mutability })
         break
       case Type.externref:
-        this.globals.push({ type, value, val_bytes: [W.ref_null, Type.externref, W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.ref.null(Type.externref), W.end], mutability })
         break
       case Type.funcref:
         this.globals.push({
           type,
           value,
-          val_bytes: value === undefined || value === null
-            ? [W.ref_null, Type.funcref, W.end]
-            : [W.ref_func, value, W.end],
+          val_bytes: (value === undefined || value === null)
+            ? [...W.ref.null(Type.funcref), W.end]
+            : [...W.ref.func(value), W.end],
           mutability,
         })
         break
@@ -645,6 +645,7 @@ export default class {
     )
 
     this.globals.forEach((glob, i) => {
+      // console.log(glob.val_bytes)
       DEBUG(this.#exe.length, [
         [glob.type, `type: ${Type[glob.type]}`],
         [glob.mutability, "mutability"],
@@ -732,12 +733,41 @@ export default class {
       DEBUG(this.#exe.length, [
         [unleb(funcs[i]).value, `function len`, unleb(funcs[i]).bytesRead],
         [func.locals.length, "local declarations count"],
-        ...func.locals.map(([type, count]) => [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]),
-        ...func.code.map(v => {
+        ...func.locals.map(([type, count]) =>
+          [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]
+        ),
+        ...func.code
+        .flatMap(v => v[0] instanceof Array && v.length > 2 ? [v[0],...v.slice(1, -1).flat(), v.at(-1)] : [v])
+        .map(v => {
           const first_is_instr = v[0] instanceof Array
-          if (first_is_instr)
-            return [debug_byte_arr(v), `${W[v[0]]} ${unleb(v[1]).value}`, v.flat(10).length]
-          return [debug_byte_arr(v), W[v]]
+          // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
+          if (!first_is_instr) return [debug_byte_arr(v), W[v]]
+          const instr = W[v[0]]
+          let val = v[1];
+          switch (true) {
+          case instr.startsWith("i32_"):
+          case instr.startsWith("i64_"):
+            val = unleb(val).value
+            break
+          case instr.startsWith("f32"):
+            val = decodeIEEE754(val, "f32")
+            break
+          case instr.startsWith("f64"):
+            val = decodeIEEE754(val, "f64")
+            break
+          case instr.startsWith("block"):
+          case instr.startsWith("loop"):
+          case instr.startsWith("if"):
+            val = Type[val]
+            break
+          case instr.startsWith("local_"):
+          case instr.startsWith("global_"):
+          case instr.startsWith("br"):
+            break
+          default:
+            throw("unhandled: " + instr + "  (use spread operator for now '...op')")
+          }
+          return [debug_byte_arr(v), `${instr} ${val}`, v.flat(10).length]
         })
       ], `Function ${i}`)
     })

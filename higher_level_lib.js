@@ -118,5 +118,5 @@ const Func = {
 
 export default {
   App, I64, I32, I16, I8, U64, U32, U16, U8, F32, F64,
-  Func, Block,
+  Func, block: Block,
 }

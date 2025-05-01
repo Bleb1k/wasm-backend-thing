@@ -3,7 +3,7 @@
  */
 
 import App, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
-import instr from "./instructions.js";
+import W from "./instructions.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -54,6 +54,33 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   [instr.call, addTwo_wasm],
 // ], { export: "foo" });
 
+app.newFunction([[Type.i64], [Type.i64]], [[Type.i64, 1]], [
+  W.I64.const(1),          // push i64{0} to stack
+  W.local.set(1),          // store 0 in local variable (acc
+
+  W.block(Type.result,                 // start of block
+    W.loop(Type.result,                // start of loop
+      W.local.get(0),
+      W.I64.eqz,
+      W.br_if(1),          // if param == 0 jump to block (to block end)
+      W.local.get(0),
+      W.local.get(1),
+      W.I64.mul,
+      W.local.set(1),      // acc *= param
+      W.local.get(0),
+      W.I64.const(1),
+      W.I64.sub,
+      W.local.set(0),      // param -= 1
+      W.br(0),           // jump to loop (to loop start)
+    ),
+  ),
+
+  W.local.get(1),        // push acc to stack, autoreturns
+], { export: "factorial" });
+
+const { instance, module } = await app.compile();
+
+console.log(instance.exports.factorial(16n)) // 20922789888000n
 // new format:
 // app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);
@@ -82,16 +109,16 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   return x.add(50).add()
 // })
 
-const { instance, module } = await app.compile({
-  foo: {
-    bar() { console.log(123) },
-    my_table: new WebAssembly.Table({ element: "anyfunc", initial: 10 }),
-    memory: new WebAssembly.Memory({ initial: 1 }),
-    my_global: 1,
-  }
-});
+// const { instance, module } = await app.compile({
+//   foo: {
+//     bar() { console.log(123) },
+//     my_table: new WebAssembly.Table({ element: "anyfunc", initial: 10 }),
+//     memory: new WebAssembly.Memory({ initial: 1 }),
+//     my_global: 1,
+//   }
+// });
 
-console.log(instance.exports, module);
+// console.log(instance.exports, module);
 
 // console.log(instance.exports.addTwo(1,-2))
 

@@ -106,14 +106,30 @@ const app = W.App.init()
  */
 const add_100 = app.function((x = W.I32.param("x")) => {
   W.I32.const(50)
-  // W.Block.pop(W.I32).push(W.I32)(() => {
-  //   x._ = x._.add()
-  // })
   return x._.add(50).add();
 }).export("add_100");
 
+// this approach also allows caching! (TODO)
+const factorial = app.function((n = W.I64.param("n")) => {
+  const acc = W.I64.local("acc").set(1)
+
+  W.block(() => W.loop(() => {
+    W.br_if(1, n._.eq(0))
+    
+    acc._ = acc._.mul(n._)
+    n._ = n._.sub(1)
+    W.br(0)
+  }))
+
+  return acc._
+}).export("factorial")
+
+app.compile()
+
+console.log(factorial._(12)) // 479001600
+
 // console.log(add_100._(25)) // error, not compiled yet
 
-app.compile(); // returns module, but can be omitted
+// app.compile(); // returns module, but can be omitted
 
 console.log(add_100._(25)) // should print 125
