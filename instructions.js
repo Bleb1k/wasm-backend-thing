@@ -23,20 +23,25 @@ export default {
    * Begins a block construct.
    * Defines a nested scope with a label for control flow (e.g., branching).
    */
-  block: (type, ...ops) => [[byte`\x02`, type], ...ops, byte`\x0b`],
+  block: (type, ...ops) => [[byte`\x02`, {blocktype: type}], ...ops, byte`\x0b`],
   /**
    * Begins a loop construct. Must have function type index or 0x40 (void) right after.
    * Similar to `block`, but allows backward branches (loops).
    */
-  loop: (type, ...ops) => [[byte`\x03`, type], ...ops, byte`\x0b`],
+  loop: (type, ...ops) => [[byte`\x03`, {blocktype: type}], ...ops, byte`\x0b`],
   /**
-   * Begins an if construct.
+   * Pops value from the stack. Begins an if construct.
    * Executes one branch if the condition is true, and optionally another branch if false.1
    */
-  if: byte`\x04`,
+  if: (type, ...ops) => {
+   let result = [[byte`\x04`, {blocktype: type}], ...ops]
+   result.else = (...else_ops) => [...result, byte`\x05`, ...else_ops]
+   return result
+  },
   /**
    * Marks the beginning of the "else" branch in an if-else construct.
    * Used to define the alternative branch when the condition is false.
+   * @deprecated Use `if(type, ...ops).else(...ops)`
    */
   else: byte`\x05`,
   /**

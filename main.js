@@ -2,7 +2,7 @@
  * TODO: Add debug info support (names and labels)
  */
 
-import App, { encodeLEB128, import_kind, mutability, Type } from "./lib.js";
+import App, { decodeIEEE754, encodeLEB128, import_kind, mutability, Type } from "./lib.js";
 import W from "./instructions.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
@@ -54,12 +54,20 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   [instr.call, addTwo_wasm],
 // ], { export: "foo" });
 
-app.newFunction([[Type.i64], [Type.i64]], [[Type.i64, 1]], [
+// console.log("ifcheck", ...W.if(Type.result,
+//   W.I32.const(10),
+//   W.br_if(1),
+// ))
+app.newFunction([
+  [Type.i64], [Type.i64]  // args, rets
+], [
+  [Type.i64, 1] // params
+], [
   W.I64.const(1),          // push i64{0} to stack
-  W.local.set(1),          // store 0 in local variable (acc
+  W.local.set(1),          // store 0 in local variable (acc)
 
-  W.block(Type.result,                 // start of block
-    W.loop(Type.result,                // start of loop
+  W.block(Type.result,     // start of block
+    W.loop(Type.result,    // start of loop
       W.local.get(0),
       W.I64.eqz,
       W.br_if(1),          // if param == 0 jump to block (to block end)

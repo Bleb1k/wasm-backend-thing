@@ -282,7 +282,7 @@ function isPowerOf2(val) {
 
 export function encode_v128(value = 0n) {
   const result = []
-  console.log(value, typeof value)
+  // console.log(value, typeof value)
   switch (typeof value) {
     case "object":
       if (!(value instanceof Array)) throw new Error("Only arrays are supported")
@@ -361,6 +361,7 @@ export const import_kind = {
 };
 
 export default class {
+  static current_app = null
   start_fn_index = -1
   imports = []
   functions_count = 0
@@ -373,8 +374,7 @@ export default class {
 
   constructor() { }
 
-  getFuncTypeIndex(args = [], rets = []) {
-    const type = Type.Func(args, rets)
+  getFuncTypeIndex(type = Type.Func()) {
     if (this.types[type] === undefined) {
       this.types[type] = this.types.count;
       this.types[this.types.count++] = type;
@@ -482,7 +482,7 @@ export default class {
         : (v.value ?? 0) === (value ?? 0))
     )
     if (global_id >= 0) return global_id
-    
+
     global_id = this.globals.length
     switch (type) {
       case Type.i32:
@@ -703,11 +703,21 @@ export default class {
 
   assembleCodeSection() {
     if (this.funcs.length === 0) return;
+    function processObjectData(obj) {
+      switch (false) {
+        case !obj?.blocktype:
+          return obj.blocktype instanceof Array
+            ? leb("i33", this.getFuncTypeIndex(obj.blocktype))
+            : obj.blocktype
+        default:
+          return obj
+      }
+    }
     function assembleFuncBody(func) {
       const fn_buf = [
         func.locals.length,
         ...func.locals.flatMap(([type, count]) => [count, type]),
-        ...func.code.flat(10),
+        ...func.code.flat(10).flatMap(v => processObjectData(v)),
       ];
       return [...leb("u32", fn_buf.length), ...fn_buf];
     }
@@ -737,38 +747,50 @@ export default class {
           [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]
         ),
         ...func.code
-        .flatMap(v => v[0] instanceof Array && v.length > 2 ? [v[0],...v.slice(1, -1).flat(), v.at(-1)] : [v])
-        .map(v => {
-          const first_is_instr = v[0] instanceof Array
-          // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
-          if (!first_is_instr) return [debug_byte_arr(v), W[v]]
-          const instr = W[v[0]]
-          let val = v[1];
-          switch (true) {
-          case instr.startsWith("i32_"):
-          case instr.startsWith("i64_"):
-            val = unleb(val).value
-            break
-          case instr.startsWith("f32"):
-            val = decodeIEEE754(val, "f32")
-            break
-          case instr.startsWith("f64"):
-            val = decodeIEEE754(val, "f64")
-            break
-          case instr.startsWith("block"):
-          case instr.startsWith("loop"):
-          case instr.startsWith("if"):
-            val = Type[val]
-            break
-          case instr.startsWith("local_"):
-          case instr.startsWith("global_"):
-          case instr.startsWith("br"):
-            break
-          default:
-            throw("unhandled: " + instr + "  (use spread operator for now '...op')")
-          }
-          return [debug_byte_arr(v), `${instr} ${val}`, v.flat(10).length]
-        })
+          .flatMap(v => v[0] instanceof Array && v.length > 2 ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v])
+          .map(v => {
+            const first_is_instr = v[0] instanceof Array
+            // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
+            if (!first_is_instr) return [debug_byte_arr(v), W[v]]
+            const instr = W[v[0]]
+            let val = v[1];
+            switch (true) {
+              case instr.startsWith("i32_"):
+              case instr.startsWith("i64_"):
+                val = unleb(val).value
+                break
+              case instr.startsWith("f32"):
+                val = decodeIEEE754(val, "f32")
+                break
+              case instr.startsWith("f64"):
+                val = decodeIEEE754(val, "f64")
+                break
+              case instr.startsWith("block"):
+              case instr.startsWith("loop"):
+              case instr.startsWith("if"):
+                if (!val.blocktype?.length) {
+                  val = Type[val.blocktype]
+                  break
+                }
+                const bt = val.blocktype
+                val = 'function ' + this.getFuncTypeIndex(bt) + ' "' + Type[bt[0]] + '('
+                const l = bt[1]
+                for (let i = 0; i < l; i++)
+                  val += Type[bt[2 + i]] + ', '
+                val += ') -> ('
+                for (let i = 0; i < bt[2 + l]; i++)
+                  val += Type[bt[3 + i]] + ', '
+                val += ')"'
+                break
+              case instr.startsWith("local_"):
+              case instr.startsWith("global_"):
+              case instr.startsWith("br"):
+                break
+              default:
+                throw ("unhandled: " + instr + "  (use spread operator for now '...op')")
+            }
+            return [debug_byte_arr(v.map(obj => processObjectData(obj))), `${instr} ${val}`, v.flat(10).length]
+          })
       ], `Function ${i}`)
     })
 
@@ -820,7 +842,7 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    // if (IS_DEBUG) this.#exe.forEach((v,i) => console.log(i, debug_byte_arr([v])))
+    // if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i, debug_byte_arr([v])))
 
     return new Uint8Array(this.#exe)
   }
