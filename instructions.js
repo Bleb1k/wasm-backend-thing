@@ -23,20 +23,20 @@ export default {
    * Begins a block construct.
    * Defines a nested scope with a label for control flow (e.g., branching).
    */
-  block: (type, ...ops) => [[byte`\x02`, {blocktype: type}], ...ops, byte`\x0b`],
+  block: (type, ...ops) => [[byte`\x02`, { blocktype: type }], ...ops, byte`\x0b`],
   /**
    * Begins a loop construct. Must have function type index or 0x40 (void) right after.
    * Similar to `block`, but allows backward branches (loops).
    */
-  loop: (type, ...ops) => [[byte`\x03`, {blocktype: type}], ...ops, byte`\x0b`],
+  loop: (type, ...ops) => [[byte`\x03`, { blocktype: type }], ...ops, byte`\x0b`],
   /**
    * Pops value from the stack. Begins an if construct.
    * Executes one branch if the condition is true, and optionally another branch if false.1
    */
   if: (type, ...ops) => {
-   let result = [[byte`\x04`, {blocktype: type}], ...ops]
-   result.else = (...else_ops) => [...result, byte`\x05`, ...else_ops]
-   return result
+    let result = [[byte`\x04`, { blocktype: type }], ...ops]
+    result.else = (...else_ops) => [...result, byte`\x05`, ...else_ops]
+    return result
   },
   /**
    * Marks the beginning of the "else" branch in an if-else construct.
@@ -1056,13 +1056,14 @@ export default {
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from the passive data segment to memory at `dest`.
      */
-    init: (index = 0) => [byte`\xfc\x08`, index],
+    init: (data_index = 0, mem_index = 0) => [byte`\xfc\x08`, data_index, mem_index],
     /**
      * Copies data within linear memory.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from memory at `src` to memory at `dest`.
      */
-    copy: (index = 0) => [byte`\xfc\x0a`, index],
+    copy: (dst_mem_index = 0, src_mem_index = 0) =>
+      [byte`\xfc\x0a`, src_mem_index, dst_mem_index],
     /**
      * Fills a region of linear memory with a repeated byte value.
      * Pops: dest (i32), value (i32), len (i32).
@@ -1070,6 +1071,11 @@ export default {
      */
     fill: (index = 0) => [byte`\xfc\x0b`, index],
   },
+  /**
+   * Drops a passive data segment, making it inaccessible.
+   * Passive data segments can no longer be used after this operation.
+   */
+  data_drop: (index) => [byte`\xfc\x09`, index],
   ref: {
     /**
      * Pushes a null reference onto the stack.
@@ -1087,11 +1093,6 @@ export default {
      */
     func: (type) => [byte`\xd2`, type],
   },
-  /**
-   * Drops a passive data segment, making it inaccessible.
-   * Passive data segments can no longer be used after this operation.
-   */
-  data_drop: byte`\xfc\x09`,
   table: {
     /**
      * Initializes a table with elements from a passive element segment.

@@ -95,11 +95,8 @@ app.newFunction([[Type.i32], [Type.i32]], [], [
 
 const { instance, module } = await app.compile();
 
-console.log(instance.exports.factorial(16n)) // 20922789888000n
 console.log(instance.exports)
-for (const fn in instance.exports) {
-  console.log(fn, instance.exports[fn])
-}
+console.log("a factorial of 16 is", instance.exports.factorial(16n)) // 20922789888000n
 console.log("allocated initially ", instance.exports.pages_allocated())
 console.log("previously allocated", instance.exports.allocate_pages(2))
 console.log("after new allocation", instance.exports.pages_allocated())

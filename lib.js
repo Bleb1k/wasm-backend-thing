@@ -1,8 +1,8 @@
-import { byte, str } from "./helpers.js";
+import { byte, guard, str } from "./helpers.js";
 import W from "./instructions.js";
 import raw_instr from "./instructions.js";
 
-const IS_DEBUG = false
+const IS_DEBUG = true
 const DEBUG = IS_DEBUG
   ? (start, arr = [], what) => console.log(`${what ? "- " + what + ":\n" : ""}${[...arr].map(v => {
     let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
@@ -395,6 +395,7 @@ export default class {
    * ])
    */
   newImport(namespace, variables) {
+    guard({namespace, variables})
     for (const v of variables) {
       const [name, kind] = v;
       // console.log(kind)
@@ -439,6 +440,8 @@ export default class {
   * @param {{export?: string, start?: bool}?} optional
   */
   newFunction(type, locals, code, optional) {
+    guard({type, locals, code})
+    
     this.functions_count += 1
     if (optional?.export !== undefined) {
       this.exports.push([
@@ -478,6 +481,8 @@ export default class {
   }
 
   newGlobal(type, value, mutability = 0) {
+    guard({type})
+
     let global_id = this.globals.findIndex(v =>
       v.type === type &&
       v.mutability === mutability &&

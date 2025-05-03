@@ -2,6 +2,13 @@ export function encode(str = "") {
   return Array.from(str).map((c) => c.charCodeAt(0));
 }
 
+export function guard(required_params_obj = {}) {
+  for (const param in required_params_obj)
+    if (!required_params_obj[param]) {
+      throw new Error(`No '${param}' is provided`)
+    }
+}
+
 export function byte(templ, ...args) {
   const buf = [encode(templ[0])];
   for (const i in args) {
