@@ -4,7 +4,7 @@ export function encode(str = "") {
 
 export function guard(required_params_obj = {}) {
   for (const param in required_params_obj)
-    if (!required_params_obj[param]) {
+    if (required_params_obj[param] === undefined || required_params_obj[param] === null) {
       throw new Error(`No '${param}' is provided`)
     }
 }

@@ -1,5 +1,5 @@
 import { byte } from "./helpers.js";
-import { encode_v128, encodeIEEE754, encodeLEB128 } from "./lib.js";
+import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
 // deno-lint-ignore no-unused-vars
 
 /**
@@ -79,7 +79,8 @@ export default {
    * Calls a function indirectly through a table.
    * Uses a function index from the table and verifies its type matches the expected signature.
    */
-  call_indirect: byte`\x11`,
+  call_indirect: (table_index, functype = Type.Func()) =>
+    [byte`\x11`, {functype}, encodeLEB128("u32", table_index)],
   /**
    * Drops the top value from the stack.
    * Removes the top element without using it.
@@ -87,12 +88,13 @@ export default {
   drop: byte`\x1a`,
   /**
    * Selects one of two values based on a condition.
-   * Pops a condition and two values from the stack; pushes the first value if the condition is true, otherwise the second.
+   * Pops two values and a condition from the stack; pushes the first value if condition is true, otherwise the second.
    */
-  select: byte`\x1b`,
+  select: (type = Type.result) => type === Type.result ? byte`\x1b` : [byte`\x1c`, 1, type],
   /**
    * Typed version of `select`.
    * Similar to `select`, but explicitly specifies the type of the values being selected.
+   * @deprecated use select(Type.\<valtype>)
    */
   selectt: byte`\x1c`,
   local: {
@@ -122,16 +124,6 @@ export default {
    * Pops a value from the stack and stores it in the specified global variable.
    */
   global_set: byte`\x24`,
-  /**
-   * Reads a value from a table.
-   * Pushes the value at the specified index in the table onto the stack.
-   */
-  table_get: byte`\x25`,
-  /**
-   * Writes a value to a table.
-   * Pops a value and an index from the stack, and stores the value at the specified index in the table.
-   */
-  table_set: byte`\x26`,
   I32: {
     /**
      * Loads an i32 value from linear memory at the address popped from the stack.
@@ -185,7 +177,7 @@ export default {
      * Pushes a 32-bit integer constant onto the stack.
      * The immediate value is encoded as a signed LEB128.
      */
-    const: (num, type = "i32") => [byte`\x41`, encodeLEB128(type, num)],
+    const: (num = 0, type = "i32") => [byte`\x41`, encodeLEB128(type, num)],
     /**
      * Checks if the top i32 value is zero.
      * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
@@ -475,7 +467,7 @@ export default {
      * Pushes a 64-bit integer constant onto the stack.
      * The immediate value is encoded as a signed LEB128.
      */
-    const: (num, type = "i64") => [byte`\x42`, encodeLEB128(type, num)],
+    const: (num = 0, type = "i64") => [byte`\x42`, encodeLEB128(type, num)],
     /**
      * Checks if the top i64 value is zero.
      * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
@@ -721,7 +713,7 @@ export default {
      * Pushes a 32-bit float constant onto the stack.
      * The immediate value is encoded in IEEE 754 binary32 format.
      */
-    const: (num, type = "f32") => [byte`\x43`, encodeIEEE754(type, num)],
+    const: (num = 0, type = "f32") => [byte`\x43`, encodeIEEE754(type, num)],
     /**
      * Floating-point equality comparison for f32.
      * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
@@ -889,7 +881,7 @@ export default {
      * Pushes a 64-bit float constant onto the stack.
      * The immediate value is encoded in IEEE 754 binary64 format.
      */
-    const: (num, type = "f64") => [byte`\x44`, encodeIEEE754(type, num)],
+    const: (num = 0, type = "f64") => [byte`\x44`, encodeIEEE754(type, num)],
     /**
      * Floating-point equality comparison for f64.
      * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
@@ -1095,41 +1087,59 @@ export default {
   },
   table: {
     /**
+     * Reads a value from a table.
+     * Pushes the value at the specified index in the table onto the stack.
+     */
+    get: (index) => [byte`\x25`, encodeLEB128("u32", index)],
+    /**
+     * Writes a value to a table.
+     * Pops a value and an index from the stack, and stores the value at the specified index in the table.
+     */
+    set: (index) => [byte`\x26`, encodeLEB128("u32", index)],
+    /**
      * Initializes a table with elements from a passive element segment.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` elements from the passive element segment to the table at `dest`.
      */
-    init: byte`\xfc\x0c`,
+    init: (passive_element_index, data_index) => [
+      byte`\xfc\x0c`,
+      encodeLEB128("u32", passive_element_index),
+      encodeLEB128("u32", data_index),
+    ],
     /**
      * Copies elements within a table or between two tables.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` elements from the table at `src` to the table at `dest`.
      */
-    copy: byte`\xfc\x0e`,
+    copy: (dst_index, src_index) => [
+      byte`\xfc\x0e`,
+      encodeLEB128("u32", src_index ?? dst_index),
+      encodeLEB128("u32", dst_index),
+    ],
     /**
      * Grows a table by a given number of elements.
      * Pops: n (i32), init_value (ref).
      * Pushes the previous size of the table as i32.
      * Adds `n` copies of `init_value` to the end of the table.
      */
-    grow: byte`\xfc\x0f`,
+    grow: (index) => [byte`\xfc\x0f`, encodeLEB128("u32", index)],
     /**
      * Gets the current size of a table.
      * Pushes the number of elements in the table as i32.
      */
-    size: byte`\xfc\x10`,
+    size: (index) => [byte`\xfc\x10`, encodeLEB128("u32", index)],
     /**
      * Fills a region of a table with a repeated reference value.
      * Pops: dest (i32), value (ref), len (i32).
      * Writes `len` copies of `value` to the table starting at `dest`.
      */
-    fill: byte`\xfc\x11`,
+    fill: (index) => [byte`\xfc\x11`, encodeLEB128("u32", index)],
   },
   /**
    * Drops a passive element segment, making it inaccessible.
    * Passive element segments can no longer be used after this operation.
    */
-  elem_drop: byte`\xfc\x0d`,
+  elem_drop: (index) => [byte`\xfc\x0d`, encodeLEB128("u32", index)],
   V128: {
     /**
      * Loads a 128-bit vector from linear memory at the address popped from the stack.
@@ -1281,7 +1291,7 @@ export default {
      * Pushes a 128-bit constant vector onto the stack.
      * The immediate value is encoded as a literal 128-bit value.
      */
-    const: (val) => [byte`\xfd\x0c`, encode_v128(val)],
+    const: (val = 0) => [byte`\xfd\x0c`, encode_v128(val)],
   },
   I8x16: {
     /**

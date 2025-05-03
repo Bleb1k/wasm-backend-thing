@@ -93,6 +93,20 @@ app.newFunction([[Type.i32], [Type.i32]], [], [
   W.memory.grow(),
 ], { export: "allocate_pages" })
 
+app.newFunction([[Type.i32, Type.i32, Type.i32], [Type.i32]], [], [
+  W.local.get(0),
+  W.local.get(1),
+  W.local.get(2),
+  W.select(),
+], { export: "check_select" })
+
+app.newFunction([[Type.externref, Type.externref, Type.i32], [Type.externref]], [], [
+  W.local.get(0),
+  W.local.get(1),
+  W.local.get(2),
+  W.select(Type.externref),
+], { export: "check_selectt" })
+
 const { instance, module } = await app.compile();
 
 console.log(instance.exports)
@@ -100,6 +114,13 @@ console.log("a factorial of 16 is", instance.exports.factorial(16n)) // 20922789
 console.log("allocated initially ", instance.exports.pages_allocated())
 console.log("previously allocated", instance.exports.allocate_pages(2))
 console.log("after new allocation", instance.exports.pages_allocated())
+// ;[[0, 1, 2]].forEach(([a, b, c]) => {
+//   console.log(instance.exports.check_select(a, b, c)) // returns a (third is 2)
+//   console.log(instance.exports.check_select(b, c, a)) // returns c (third is 0)
+//   console.log(instance.exports.check_select(c, a, b)) // returns c (third is 1)
+// })
+instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false"), 0)()
+instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false"), 1)()
 // new format:
 // app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);

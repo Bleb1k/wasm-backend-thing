@@ -124,6 +124,8 @@ const section = {
  * encodeLEB128("i32", -1); // [ 127 ]
  */
 export function encodeLEB128(type, value) {
+  guard({type, value})
+
   const match = type.match(/^([iu])(\d+)$/);
   if (!match) {
     throw new Error(`Invalid type format: ${type}. Expected format like "u32" or "i32".`);
@@ -495,19 +497,19 @@ export default class {
     global_id = this.globals.length
     switch (type) {
       case Type.i32:
-        this.globals.push({ type, value, val_bytes: [...W.I32.const(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.I32.const(value), W.end], mutability })
         break
       case Type.i64:
-        this.globals.push({ type, value, val_bytes: [...W.I64.const(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.I64.const(value), W.end], mutability })
         break
       case Type.v128:
-        this.globals.push({ type, value, val_bytes: [...W.V128.const(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.V128.const(value), W.end], mutability })
         break
       case Type.f32:
-        this.globals.push({ type, value, val_bytes: [...W.F32.const(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.F32.const(value), W.end], mutability })
         break
       case Type.f64:
-        this.globals.push({ type, value, val_bytes: [...W.F64.const(value ?? 0), W.end], mutability })
+        this.globals.push({ type, value, val_bytes: [...W.F64.const(value), W.end], mutability })
         break
       case Type.externref:
         this.globals.push({ type, value, val_bytes: [...W.ref.null(Type.externref), W.end], mutability })
@@ -718,6 +720,8 @@ export default class {
           return obj.blocktype instanceof Array
             ? leb("i33", this.getFuncTypeIndex(obj.blocktype))
             : obj.blocktype
+        case !obj?.functype:
+          return this.getFuncTypeIndex(obj.functype)
         default:
           return obj
       }
@@ -795,6 +799,9 @@ export default class {
               case instr.startsWith("global_"):
               case instr.startsWith("br"):
               case instr.startsWith("memory_"):
+                break
+              case instr.startsWith("selectt"):
+                console.error("Todo: proper select debug info")
                 break
               default:
                 throw new Error("unhandled: " + instr + "  (use spread operator for now '...op')")
