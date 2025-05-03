@@ -80,7 +80,7 @@ export default {
    * Uses a function index from the table and verifies its type matches the expected signature.
    */
   call_indirect: (table_index, functype = Type.Func()) =>
-    [byte`\x11`, {functype}, encodeLEB128("u32", table_index)],
+    [byte`\x11`, { functype }, encodeLEB128("u32", table_index)],
   /**
    * Drops the top value from the stack.
    * Removes the top element without using it.
@@ -114,16 +114,18 @@ export default {
      */
     tee: (index) => [byte`\x22`, index],
   },
-  /**
-   * Reads a value from a global variable.
-   * Pushes the value of the specified global variable onto the stack.
-   */
-  global_get: byte`\x23`,
-  /**
-   * Writes a value to a global variable.
-   * Pops a value from the stack and stores it in the specified global variable.
-   */
-  global_set: byte`\x24`,
+  global: {
+    /**
+     * Reads a value from a global variable.
+     * Pushes the value of the specified global variable onto the stack.
+     */
+    get: (index) => [byte`\x23`, index],
+    /**
+     * Writes a value to a global variable.
+     * Pops a value from the stack and stores it in the specified global variable.
+     */
+    set: (index) => [byte`\x24`, index],
+  },
   I32: {
     /**
      * Loads an i32 value from linear memory at the address popped from the stack.
