@@ -2,6 +2,8 @@ import { byte } from "./helpers.js";
 import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
 // deno-lint-ignore no-unused-vars
 
+// TODO: figure out v128 shuffle
+
 /**
  * Manually transcribed 436 wasm instructions!
  * And each commented by an AI!
@@ -64,7 +66,7 @@ export default {
    * Implements a multi-way branch.
    * Pops an index from the stack and branches to the corresponding label in a table of targets.
    */
-  br_table: (level) => [byte`\x0e`, level],
+  br_table: (...levels) => [byte`\x0e`, [levels.length, ...levels, 0]],
   /**
    * Returns from the current function.
    * Pops values from the stack and returns them as the function's result(s).
@@ -126,6 +128,98 @@ export default {
      */
     set: (index) => [byte`\x24`, index],
   },
+  table: {
+    /**
+     * Reads a value from a table.
+     * Pushes the value at the specified index in the table onto the stack.
+     */
+    get: (index) => [byte`\x25`, encodeLEB128("u32", index)],
+    /**
+     * Writes a value to a table.
+     * Pops a value and an index from the stack, and stores the value at the specified index in the table.
+     */
+    set: (index) => [byte`\x26`, encodeLEB128("u32", index)],
+    /**
+     * Initializes a table with elements from a passive element segment.
+     * Pops: dest (i32), src (i32), len (i32).
+     * Copies `len` elements from the passive element segment to the table at `dest`.
+     */
+    init: (passive_element_index, data_index) => [
+      byte`\xfc\x0c`,
+      encodeLEB128("u32", passive_element_index),
+      encodeLEB128("u32", data_index),
+    ],
+    /**
+     * Copies elements within a table or between two tables.
+     * Pops: dest (i32), src (i32), len (i32).
+     * Copies `len` elements from the table at `src` to the table at `dest`.
+     */
+    copy: (dst_index, src_index) => [
+      byte`\xfc\x0e`,
+      encodeLEB128("u32", src_index ?? dst_index),
+      encodeLEB128("u32", dst_index),
+    ],
+    /**
+     * Grows a table by a given number of elements.
+     * Pops: n (i32), init_value (ref).
+     * Pushes the previous size of the table as i32.
+     * Adds `n` copies of `init_value` to the end of the table.
+     */
+    grow: (index) => [byte`\xfc\x0f`, encodeLEB128("u32", index)],
+    /**
+     * Gets the current size of a table.
+     * Pushes the number of elements in the table as i32.
+     */
+    size: (index) => [byte`\xfc\x10`, encodeLEB128("u32", index)],
+    /**
+     * Fills a region of a table with a repeated reference value.
+     * Pops: dest (i32), value (ref), len (i32).
+     * Writes `len` copies of `value` to the table starting at `dest`.
+     */
+    fill: (index) => [byte`\xfc\x11`, encodeLEB128("u32", index)],
+  },
+  /**
+   * Drops a passive element segment, making it inaccessible.
+   * Passive element segments can no longer be used after this operation.
+   */
+  elem_drop: (index) => [byte`\xfc\x0d`, encodeLEB128("u32", index)],
+  memory: {
+    /**
+     * Pushes the current size of the default linear memory (in 64KB pages) as an i32.
+     * Example: (memory_size) → pushes the number of pages allocated.
+     */
+    size: (index = 0) => [byte`\x3f`, index],
+    /**
+     * Grows the default linear memory by N 64KB pages (popped as i32).
+     * Pushes the previous memory size (in pages) as i32, or -1 if growth failed.
+     * Traps if the input value is invalid (e.g., exceeds max memory limits).
+     */
+    grow: (index = 0) => [byte`\x40`, index],
+    /**
+     * Initializes a region of linear memory with data from a passive data segment.
+     * Pops: dest (i32), src (i32), len (i32).
+     * Copies `len` bytes from the passive data segment to memory at `dest`.
+     */
+    init: (data_index = 0, mem_index = 0) => [byte`\xfc\x08`, data_index, mem_index],
+    /**
+     * Copies data within linear memory.
+     * Pops: dest (i32), src (i32), len (i32).
+     * Copies `len` bytes from memory at `src` to memory at `dest`.
+     */
+    copy: (dst_mem_index = 0, src_mem_index = 0) =>
+      [byte`\xfc\x0a`, src_mem_index, dst_mem_index],
+    /**
+     * Fills a region of linear memory with a repeated byte value.
+     * Pops: dest (i32), value (i32), len (i32).
+     * Writes `len` copies of `value & 0xFF` to memory starting at `dest`.
+     */
+    fill: (index = 0) => [byte`\xfc\x0b`, index],
+  },
+  /**
+   * Drops a passive data segment, making it inaccessible.
+   * Passive data segments can no longer be used after this operation.
+   */
+  data_drop: (index) => [byte`\xfc\x09`, index],
   I32: {
     /**
      * Loads an i32 value from linear memory at the address popped from the stack.
@@ -1033,43 +1127,6 @@ export default {
      */
     reinterpret_i64: byte`\xbf`,
   },
-  memory: {
-    /**
-     * Pushes the current size of the default linear memory (in 64KB pages) as an i32.
-     * Example: (memory_size) → pushes the number of pages allocated.
-     */
-    size: (index = 0) => [byte`\x3f`, index],
-    /**
-     * Grows the default linear memory by N 64KB pages (popped as i32).
-     * Pushes the previous memory size (in pages) as i32, or -1 if growth failed.
-     * Traps if the input value is invalid (e.g., exceeds max memory limits).
-     */
-    grow: (index = 0) => [byte`\x40`, index],
-    /**
-     * Initializes a region of linear memory with data from a passive data segment.
-     * Pops: dest (i32), src (i32), len (i32).
-     * Copies `len` bytes from the passive data segment to memory at `dest`.
-     */
-    init: (data_index = 0, mem_index = 0) => [byte`\xfc\x08`, data_index, mem_index],
-    /**
-     * Copies data within linear memory.
-     * Pops: dest (i32), src (i32), len (i32).
-     * Copies `len` bytes from memory at `src` to memory at `dest`.
-     */
-    copy: (dst_mem_index = 0, src_mem_index = 0) =>
-      [byte`\xfc\x0a`, src_mem_index, dst_mem_index],
-    /**
-     * Fills a region of linear memory with a repeated byte value.
-     * Pops: dest (i32), value (i32), len (i32).
-     * Writes `len` copies of `value & 0xFF` to memory starting at `dest`.
-     */
-    fill: (index = 0) => [byte`\xfc\x0b`, index],
-  },
-  /**
-   * Drops a passive data segment, making it inaccessible.
-   * Passive data segments can no longer be used after this operation.
-   */
-  data_drop: (index) => [byte`\xfc\x09`, index],
   ref: {
     /**
      * Pushes a null reference onto the stack.
@@ -1087,61 +1144,6 @@ export default {
      */
     func: (type) => [byte`\xd2`, type],
   },
-  table: {
-    /**
-     * Reads a value from a table.
-     * Pushes the value at the specified index in the table onto the stack.
-     */
-    get: (index) => [byte`\x25`, encodeLEB128("u32", index)],
-    /**
-     * Writes a value to a table.
-     * Pops a value and an index from the stack, and stores the value at the specified index in the table.
-     */
-    set: (index) => [byte`\x26`, encodeLEB128("u32", index)],
-    /**
-     * Initializes a table with elements from a passive element segment.
-     * Pops: dest (i32), src (i32), len (i32).
-     * Copies `len` elements from the passive element segment to the table at `dest`.
-     */
-    init: (passive_element_index, data_index) => [
-      byte`\xfc\x0c`,
-      encodeLEB128("u32", passive_element_index),
-      encodeLEB128("u32", data_index),
-    ],
-    /**
-     * Copies elements within a table or between two tables.
-     * Pops: dest (i32), src (i32), len (i32).
-     * Copies `len` elements from the table at `src` to the table at `dest`.
-     */
-    copy: (dst_index, src_index) => [
-      byte`\xfc\x0e`,
-      encodeLEB128("u32", src_index ?? dst_index),
-      encodeLEB128("u32", dst_index),
-    ],
-    /**
-     * Grows a table by a given number of elements.
-     * Pops: n (i32), init_value (ref).
-     * Pushes the previous size of the table as i32.
-     * Adds `n` copies of `init_value` to the end of the table.
-     */
-    grow: (index) => [byte`\xfc\x0f`, encodeLEB128("u32", index)],
-    /**
-     * Gets the current size of a table.
-     * Pushes the number of elements in the table as i32.
-     */
-    size: (index) => [byte`\xfc\x10`, encodeLEB128("u32", index)],
-    /**
-     * Fills a region of a table with a repeated reference value.
-     * Pops: dest (i32), value (ref), len (i32).
-     * Writes `len` copies of `value` to the table starting at `dest`.
-     */
-    fill: (index) => [byte`\xfc\x11`, encodeLEB128("u32", index)],
-  },
-  /**
-   * Drops a passive element segment, making it inaccessible.
-   * Passive element segments can no longer be used after this operation.
-   */
-  elem_drop: (index) => [byte`\xfc\x0d`, encodeLEB128("u32", index)],
   V128: {
     /**
      * Loads a 128-bit vector from linear memory at the address popped from the stack.
@@ -1315,17 +1317,17 @@ export default {
      * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
      */
-    extract_lane_s: byte`\xfd\x15`,
+    extract_lane_s: (index) => [byte`\xfd\x15`, index],
     /**
      * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
      */
-    extract_lane_u: byte`\xfd\x16`,
+    extract_lane_u: (index) => [byte`\xfd\x16`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    replace_lane: byte`\xfd\x17`,
+    replace_lane: (index) => [byte`\xfd\x17`, index],
     /**
      * Compares two 128-bit vectors for equality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
@@ -1497,17 +1499,17 @@ export default {
      * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
      */
-    extract_lane_s: byte`\xfd\x18`,
+    extract_lane_s: (index) => [byte`\xfd\x18`, index],
     /**
      * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
      */
-    extract_lane_u: byte`\xfd\x19`,
+    extract_lane_u: (index) => [byte`\xfd\x19`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    replace_lane: byte`\xfd\x1a`,
+    replace_lane: (index) => [byte`\xfd\x1a`, index],
     /**
      * Compares two 128-bit vectors for equality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
@@ -1744,12 +1746,12 @@ export default {
      * Extracts a 32-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i32.
      */
-    extract_lane: byte`\xfd\x1b`,
+    extract_lane: (index) => [byte`\xfd\x1b`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    replace_lane: byte`\xfd\x1c`,
+    replace_lane: (index) => [byte`\xfd\x1c`, index],
     /**
      * Compares two 128-bit vectors for equality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
@@ -1951,12 +1953,12 @@ export default {
      * Extracts a 64-bit integer from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an i64.
      */
-    extract_lane: byte`\xfd\x1d`,
+    extract_lane: (index) => [byte`\xfd\x1d`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    replace_lane: byte`\xfd\x1e`,
+    replace_lane: (index) => [byte`\xfd\x1e`, index],
     /**
      * Computes the absolute value of each lane in an `i64x2` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
@@ -2093,12 +2095,12 @@ export default {
      * Extracts a 32-bit float from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an f32.
      */
-    extract_lane: byte`\xfd\x1f`,
+    extract_lane: (index) => [byte`\xfd\x1f`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    replace_lane: byte`\xfd\x20`,
+    replace_lane: (index) => [byte`\xfd\x20`, index],
     /**
      * Compares two 128-bit vectors of 32-bit floats for equality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
@@ -2231,137 +2233,137 @@ export default {
      * Creates a 128-bit vector by replicating a 64-bit float across all lanes.
      * Pops 1 value and splats it across all 2 lanes of the vector.
      */
-    f64x2_splat: byte`\xfd\x14`,
+    splat: byte`\xfd\x14`,
     /**
      * Extracts a 64-bit float from a specific lane of a 128-bit vector.
      * Pops a vector and pushes the extracted lane value as an f64.
      */
-    f64x2_extract_lane: byte`\xfd\x21`,
+    extract_lane: (index) => [byte`\xfd\x21`, index],
     /**
      * Replaces a specific lane in a 128-bit vector with a new value.
      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
      */
-    f64x2_replace_lane: byte`\xfd\x22`,
+    replace_lane: (index) => [byte`\xfd\x22`, index],
     /**
      * Compares two 128-bit vectors of 64-bit floats for equality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if equal, or `0x0000000000000000` otherwise.
      */
-    f64x2_eq: byte`\xfd\x47`,
+    eq: byte`\xfd\x47`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for inequality (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if not equal, or `0x0000000000000000` otherwise.
      */
-    f64x2_ne: byte`\xfd\x48`,
+    ne: byte`\xfd\x48`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for less-than (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a < b)`, or `0x0000000000000000` otherwise.
      */
-    f64x2_lt: byte`\xfd\x49`,
+    lt: byte`\xfd\x49`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for greater-than (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a > b)`, or `0x0000000000000000` otherwise.
      */
-    f64x2_gt: byte`\xfd\x4a`,
+    gt: byte`\xfd\x4a`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for less-than-or-equal (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≤ b)`, or `0x0000000000000000` otherwise.
      */
-    f64x2_le: byte`\xfd\x4b`,
+    le: byte`\xfd\x4b`,
     /**
      * Compares two 128-bit vectors of 64-bit floats for greater-than-or-equal (per-lane).
      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≥ b)`, or `0x0000000000000000` otherwise.
      */
-    f64x2_ge: byte`\xfd\x4c`,
+    ge: byte`\xfd\x4c`,
     /**
      * Converts the low two 32-bit floats in an `f32x4` vector to two 64-bit floats in an `f64x2` vector.
      * Pops one vector and pushes the converted vector.
      */
-    f64x2_promote_low_f32x4: byte`\xfd\x5f`,
+    promote_low_f32x4: byte`\xfd\x5f`,
     /**
      * Rounds each lane of an `f64x2` vector up to the nearest integer.
      * Pops one vector and pushes a new vector where each lane is rounded up.
      */
-    f64x2_ceil: byte`\xfd\x74`,
+    ceil: byte`\xfd\x74`,
     /**
      * Rounds each lane of an `f64x2` vector down to the nearest integer.
      * Pops one vector and pushes a new vector where each lane is rounded down.
      */
-    f64x2_floor: byte`\xfd\x75`,
+    floor: byte`\xfd\x75`,
     /**
      * Truncates each lane of an `f64x2` vector toward zero.
      * Pops one vector and pushes a new vector where each lane is truncated.
      */
-    f64x2_trunc: byte`\xfd\x7a`,
+    trunc: byte`\xfd\x7a`,
     /**
      * Rounds each lane of an `f64x2` vector to the nearest integer (ties to even).
      * Pops one vector and pushes a new vector where each lane is rounded.
      */
-    f64x2_nearest: byte`\xfd\x94\x01`,
+    nearest: byte`\xfd\x94\x01`,
     /**
      * Computes the absolute value of each lane in an `f64x2` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
      */
-    f64x2_abs: byte`\xfd\xec\x01`,
+    abs: byte`\xfd\xec\x01`,
     /**
      * Negates each lane in an `f64x2` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
      */
-    f64x2_neg: byte`\xfd\xed\x01`,
+    neg: byte`\xfd\xed\x01`,
     /**
      * Computes the square root of each lane in an `f64x2` vector.
      * Pops one vector and pushes a new vector where each lane is replaced by its square root.
      */
-    f64x2_sqrt: byte`\xfd\xef\x01`,
+    sqrt: byte`\xfd\xef\x01`,
     /**
      * Adds corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
      */
-    f64x2_add: byte`\xfd\xf0\x01`,
+    add: byte`\xfd\xf0\x01`,
     /**
      * Subtracts corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
      */
-    f64x2_sub: byte`\xfd\xf1\x01`,
+    sub: byte`\xfd\xf1\x01`,
     /**
      * Multiplies corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
      */
-    f64x2_mul: byte`\xfd\xf2\x01`,
+    mul: byte`\xfd\xf2\x01`,
     /**
      * Divides corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the quotient of the corresponding lanes.
      */
-    f64x2_div: byte`\xfd\xf3\x01`,
+    div: byte`\xfd\xf3\x01`,
     /**
      * Computes the minimum of corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
      */
-    f64x2_min: byte`\xfd\xf4\x01`,
+    min: byte`\xfd\xf4\x01`,
     /**
      * Computes the maximum of corresponding lanes of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
      */
-    f64x2_max: byte`\xfd\xf5\x01`,
+    max: byte`\xfd\xf5\x01`,
     /**
      * Computes the pairwise minimum of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes, propagating NaNs.
      */
-    f64x2_pmin: byte`\xfd\xf6\x01`,
+    pmin: byte`\xfd\xf6\x01`,
     /**
      * Computes the pairwise maximum of two `f64x2` vectors.
      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes, propagating NaNs.
      */
-    f64x2_pmax: byte`\xfd\xf7\x01`,
+    pmax: byte`\xfd\xf7\x01`,
     /**
      * Converts the low two lanes of an `i32x4` vector to an `f64x2` vector using signed conversion.
      * Pops one vector and pushes a new vector where the low two lanes are converted to `f64`.
      */
-    f64x2_convert_low_i32x4_s: byte`\xfd\xfe\x01`,
+    convert_low_i32x4_s: byte`\xfd\xfe\x01`,
     /**
      * Converts the low two lanes of an `i32x4` vector to an `f64x2` vector using unsigned conversion.
      * Pops one vector and pushes a new vector where the low two lanes are converted to `f64`.
      */
-    f64x2_convert_low_i32x4_u: byte`\xfd\xff\x01`,
+    convert_low_i32x4_u: byte`\xfd\xff\x01`,
     /**
      * Pushes a 128-bit constant vector onto the stack.
      * The immediate value is encoded as a vector of 2 64-bit float values.
