@@ -2,7 +2,7 @@ import { byte, str } from "./helpers.js";
 import W from "./instructions.js";
 import raw_instr from "./instructions.js";
 
-const IS_DEBUG = true
+const IS_DEBUG = false
 const DEBUG = IS_DEBUG
   ? (start, arr = [], what) => console.log(`${what ? "- " + what + ":\n" : ""}${[...arr].map(v => {
     let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
@@ -20,16 +20,20 @@ const DEBUG = IS_DEBUG
   ).filter(v => v).join("\n")
     }`)
   : (..._) => void _
-const debug_byte = (byte_str) => debug_byte_arr(byte(byte_str))
-const debug_byte_arr = (arr) => arr.flat(10).map(n => n.toString(16).padStart(2, 0)).reduce((acc, v) => {
-  const cur_str = acc.pop()
-  if (cur_str.length < 4)
-    acc.push(cur_str + v)
-  else
-    acc.push(cur_str, v)
-  return acc
-}, [""]).join(" ")
-const debug_str = (byte_arr) => '"' + byte_arr.map(v => String.fromCodePoint(v)).join("") + '"'
+const debug_byte = IS_DEBUG ? (byte_str) => debug_byte_arr(byte(byte_str)) : (_) => void _
+const debug_byte_arr = IS_DEBUG
+  ? (arr) => [arr].flat(10).map(n => n.toString(16).padStart(2, 0)).reduce((acc, v) => {
+      const cur_str = acc.pop()
+      if (cur_str.length < 4)
+        acc.push(cur_str + v)
+      else
+        acc.push(cur_str, v)
+      return acc
+    }, [""]).join(" ")
+  : (_) => void _
+const debug_str = IS_DEBUG
+  ? (byte_arr) => '"' + byte_arr.map(v => String.fromCodePoint(v)).join("") + '"'
+  : (_) => void _
 
 export const Type = {
   // Number type
@@ -785,9 +789,10 @@ export default class {
               case instr.startsWith("local_"):
               case instr.startsWith("global_"):
               case instr.startsWith("br"):
+              case instr.startsWith("memory_"):
                 break
               default:
-                throw ("unhandled: " + instr + "  (use spread operator for now '...op')")
+                throw new Error("unhandled: " + instr + "  (use spread operator for now '...op')")
             }
             return [debug_byte_arr(v.map(obj => processObjectData(obj))), `${instr} ${val}`, v.flat(10).length]
           })

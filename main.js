@@ -54,10 +54,8 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   [instr.call, addTwo_wasm],
 // ], { export: "foo" });
 
-// console.log("ifcheck", ...W.if(Type.result,
-//   W.I32.const(10),
-//   W.br_if(1),
-// ))
+app.newMemory(0, undefined, "memory")
+
 app.newFunction([
   [Type.i64], [Type.i64]  // args, rets
 ], [
@@ -86,9 +84,25 @@ app.newFunction([
   W.local.get(1),        // push acc to stack, autoreturns
 ], { export: "factorial" });
 
+app.newFunction([[], [Type.i32]], [], [
+  W.memory.size()
+], { export: "pages_allocated" })
+
+app.newFunction([[Type.i32], [Type.i32]], [], [
+  W.local.get(0),
+  W.memory.grow(),
+], { export: "allocate_pages" })
+
 const { instance, module } = await app.compile();
 
 console.log(instance.exports.factorial(16n)) // 20922789888000n
+console.log(instance.exports)
+for (const fn in instance.exports) {
+  console.log(fn, instance.exports[fn])
+}
+console.log("allocated initially ", instance.exports.pages_allocated())
+console.log("previously allocated", instance.exports.allocate_pages(2))
+console.log("after new allocation", instance.exports.pages_allocated())
 // new format:
 // app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);

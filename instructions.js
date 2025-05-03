@@ -47,6 +47,7 @@ export default {
   /**
    * Ends a block, loop, or if construct.
    * Closes the current scope and exits the construct.
+   * @deprecated End is automatically inserted where it needs to be.
    */
   end: byte`\x0b`,
   /**
@@ -1043,31 +1044,31 @@ export default {
      * Pushes the current size of the default linear memory (in 64KB pages) as an i32.
      * Example: (memory_size) → pushes the number of pages allocated.
      */
-    size: byte`\x3f`,
+    size: (index = 0) => [byte`\x3f`, index],
     /**
      * Grows the default linear memory by N 64KB pages (popped as i32).
      * Pushes the previous memory size (in pages) as i32, or -1 if growth failed.
      * Traps if the input value is invalid (e.g., exceeds max memory limits).
      */
-    grow: byte`\x40`,
+    grow: (index = 0) => [byte`\x40`, index],
     /**
      * Initializes a region of linear memory with data from a passive data segment.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from the passive data segment to memory at `dest`.
      */
-    init: byte`\xfc\x08`,
+    init: (index = 0) => [byte`\xfc\x08`, index],
     /**
      * Copies data within linear memory.
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from memory at `src` to memory at `dest`.
      */
-    copy: byte`\xfc\x0a`,
+    copy: (index = 0) => [byte`\xfc\x0a`, index],
     /**
      * Fills a region of linear memory with a repeated byte value.
      * Pops: dest (i32), value (i32), len (i32).
      * Writes `len` copies of `value & 0xFF` to memory starting at `dest`.
      */
-    fill: byte`\xfc\x0b`,
+    fill: (index = 0) => [byte`\xfc\x0b`, index],
   },
   ref: {
     /**
