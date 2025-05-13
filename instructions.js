@@ -1,8 +1,5 @@
 import { byte } from "./helpers.js";
 import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
-// deno-lint-ignore no-unused-vars
-
-// TODO: figure out v128 shuffle
 
 /**
  * Manually transcribed 436 wasm instructions!
@@ -1302,7 +1299,7 @@ export default {
      * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
      * Pops two vectors and uses a 16-byte immediate mask to produce the result.
      */
-    shuffle: byte`\xfd\x0d`,
+    shuffle: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0d` vals]),
     /**
      * Swizzles the first vector using indices from the second vector.
      * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
