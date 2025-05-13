@@ -223,19 +223,19 @@ export default {
      * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
      * Requires alignment byte and offset byte right after.
      */
-    load: (offset = 0) => [byte`\x28`, 4, encodeLEB128("u32", offset)],
+    load: (offset = 0) => [byte`\x28`, 2, encodeLEB128("u32", offset)],
     /**
      * Loads an 8-bit value from linear memory, sign-extends it to i32.
      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load8_s: (offset = 0) => [byte`\x2c`, 1, encodeLEB128("u32", offset)],
+    load8_s: (offset = 0) => [byte`\x2c`, 0, encodeLEB128("u32", offset)],
     /**
      * Loads an 8-bit value from linear memory, zero-extends it to i32.
      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load8_u: (offset = 0) => [byte`\x2d`, 1, encodeLEB128("u32", offset)],
+    load8_u: (offset = 0) => [byte`\x2d`, 0, encodeLEB128("u32", offset)],
     /**
      * Loads a 16-bit value from linear memory, sign-extends it to i32.
      * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
@@ -253,13 +253,13 @@ export default {
      * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store: (offset = 0) => [byte`\x36`, 4, encodeLEB128("u32", offset)],
+    store: (offset = 0) => [byte`\x36`, 2, encodeLEB128("u32", offset)],
     /**
      * Stores the low 8 bits of an i32 value into memory.
      * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store8: (offset = 0) => [byte`\x3a`, 1, encodeLEB128("u32", offset)],
+    store8: (offset = 0) => [byte`\x3a`, 0, encodeLEB128("u32", offset)],
     /**
      * Stores the low 16 bits of an i32 value into memory.
      * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
@@ -495,67 +495,67 @@ export default {
      * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
      * Requires alignment byte and offset byte right after.
      */
-    load: (offset = 0) => [byte`\x29`, 8, encodeLEB128("u32", offset)],
+    load: (offset = 0) => [byte`\x29`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads an 8-bit value from linear memory, sign-extends it to i64.
      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load8_s: (offset = 0) => [byte`\x30`, 1, encodeLEB128("u32", offset)],
+    load8_s: (offset = 0) => [byte`\x30`, 0, encodeLEB128("u32", offset)],
     /**
      * Loads an 8-bit value from linear memory, zero-extends it to i64.
      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load8_u: (offset = 0) => [byte`\x31`, 1, encodeLEB128("u32", offset)],
+    load8_u: (offset = 0) => [byte`\x31`, 0, encodeLEB128("u32", offset)],
     /**
      * Loads a 16-bit value from linear memory, sign-extends it to i64.
      * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load16_s: (offset = 0) => [byte`\x32`, 2, encodeLEB128("u32", offset)],
+    load16_s: (offset = 0) => [byte`\x32`, 1, encodeLEB128("u32", offset)],
     /**
      * Loads a 16-bit value from linear memory, zero-extends it to i64.
      * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load16_u: (offset = 0) => [byte`\x33`, 2, encodeLEB128("u32", offset)],
+    load16_u: (offset = 0) => [byte`\x33`, 1, encodeLEB128("u32", offset)],
     /**
      * Loads a 32-bit value from linear memory, sign-extends it to i64.
      * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load32_s: (offset = 0) => [byte`\x34`, 4, encodeLEB128("u32", offset)],
+    load32_s: (offset = 0) => [byte`\x34`, 2, encodeLEB128("u32", offset)],
     /**
      * Loads a 32-bit value from linear memory, zero-extends it to i64.
      * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    load32_u: (offset = 0) => [byte`\x35`, 4, encodeLEB128("u32", offset)],
+    load32_u: (offset = 0) => [byte`\x35`, 2, encodeLEB128("u32", offset)],
     /**
      * Stores an i64 value into linear memory at address popped from stack.
      * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store: (offset = 0) => [byte`\x37`, 8, encodeLEB128("u32", offset)],
+    store: (offset = 0) => [byte`\x37`, 3, encodeLEB128("u32", offset)],
     /**
      * Stores the low 8 bits of an i64 value into memory.
      * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store8: (offset = 0) => [byte`\x3c`, 1, encodeLEB128("u32", offset)],
+    store8: (offset = 0) => [byte`\x3c`, 0, encodeLEB128("u32", offset)],
     /**
      * Stores the low 16 bits of an i64 value into memory.
      * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store16: (offset = 0) => [byte`\x3d`, 2, encodeLEB128("u32", offset)],
+    store16: (offset = 0) => [byte`\x3d`, 1, encodeLEB128("u32", offset)],
     /**
      * Stores the low 32 bits of an i64 value into memory.
      * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store32: (offset = 0) => [byte`\x3e`, 4, encodeLEB128("u32", offset)],
+    store32: (offset = 0) => [byte`\x3e`, 2, encodeLEB128("u32", offset)],
     /**
      * Pushes a 64-bit integer constant onto the stack.
      * The immediate value is encoded as a signed LEB128.
@@ -795,13 +795,13 @@ export default {
      * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
      *   equires alignment byte and offset byte right after.
      */
-    load: (offset = 0) => [byte`\x2a`, 4, encodeLEB128("u32", offset)],
+    load: (offset = 0) => [byte`\x2a`, 2, encodeLEB128("u32", offset)],
     /**
      * Stores an f32 value into linear memory at address popped from stack.
      * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store: (offset = 0) => [byte`\x38`, 4, encodeLEB128("u32", offset)],
+    store: (offset = 0) => [byte`\x38`, 2, encodeLEB128("u32", offset)],
     /**
      * Pushes a 32-bit float constant onto the stack.
      * The immediate value is encoded in IEEE 754 binary32 format.
@@ -963,13 +963,13 @@ export default {
      * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
      * Requires alignment byte and offset byte right after.
      */
-    load: (offset = 0) => [byte`\x2b`, 8, encodeLEB128("u32", offset)],
+    load: (offset = 0) => [byte`\x2b`, 3, encodeLEB128("u32", offset)],
     /**
      * Stores an f64 value into linear memory at address popped from stack.
      * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
      * Requires alignment byte and offset byte right after.
      */
-    store: (offset = 0) => [byte`\x39`, 8, encodeLEB128("u32", offset)],
+    store: (offset = 0) => [byte`\x39`, 3, encodeLEB128("u32", offset)],
     /**
      * Pushes a 64-bit float constant onto the stack.
      * The immediate value is encoded in IEEE 754 binary64 format.
@@ -1146,62 +1146,62 @@ export default {
      * Loads a 128-bit vector from linear memory at the address popped from the stack.
      * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
      */
-    load: (offset = 0) => [byte`\xfd\x00`, 16, encodeLEB128("u32", offset)],
+    load: (offset = 0) => [byte`\xfd\x00`, 4, encodeLEB128("u32", offset)],
     /**
      * Loads 8 bytes from memory, sign-extends each byte to 16 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load8x8_s: (offset = 0) => [byte`\xfd\x01`, 8, encodeLEB128("u32", offset)],
+    load8x8_s: (offset = 0) => [byte`\xfd\x01`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads 8 bytes from memory, zero-extends each byte to 16 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load8x8_u: (offset = 0) => [byte`\xfd\x02`, 8, encodeLEB128("u32", offset)],
+    load8x8_u: (offset = 0) => [byte`\xfd\x02`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads 4 halfwords (16 bits) from memory, sign-extends each halfword to 32 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load16x4_s: (offset = 0) => [byte`\xfd\x03`, 8, encodeLEB128("u32", offset)],
+    load16x4_s: (offset = 0) => [byte`\xfd\x03`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads 4 halfwords (16 bits) from memory, zero-extends each halfword to 32 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load16x4_u: (offset = 0) => [byte`\xfd\x04`, 8, encodeLEB128("u32", offset)],
+    load16x4_u: (offset = 0) => [byte`\xfd\x04`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads 2 words (32 bits) from memory, sign-extends each word to 64 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load32x2_s: (offset = 0) => [byte`\xfd\x05`, 8, encodeLEB128("u32", offset)],
+    load32x2_s: (offset = 0) => [byte`\xfd\x05`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads 2 words (32 bits) from memory, zero-extends each word to 64 bits, and packs into a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load32x2_u: (offset = 0) => [byte`\xfd\x06`, 8, encodeLEB128("u32", offset)],
+    load32x2_u: (offset = 0) => [byte`\xfd\x06`, 3, encodeLEB128("u32", offset)],
     /**
      * Loads a single byte from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
      * Pops address from stack. Requires 1-byte alignment.
      */
-    load8_splat: (offset = 0) => [byte`\xfd\x07`, 1, encodeLEB128("u32", offset)],
+    load8_splat: (offset = 0) => [byte`\xfd\x07`, 0, encodeLEB128("u32", offset)],
     /**
      * Loads a single halfword (16 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
      * Pops address from stack. Requires 2-byte alignment.
      */
-    load16_splat: (offset = 0) => [byte`\xfd\x08`, 2, encodeLEB128("u32", offset)],
+    load16_splat: (offset = 0) => [byte`\xfd\x08`, 1, encodeLEB128("u32", offset)],
     /**
      * Loads a single word (32 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
      * Pops address from stack. Requires 4-byte alignment.
      */
-    load32_splat: (offset = 0) => [byte`\xfd\x09`, 4, encodeLEB128("u32", offset)],
+    load32_splat: (offset = 0) => [byte`\xfd\x09`, 2, encodeLEB128("u32", offset)],
     /**
      * Loads a single doubleword (64 bits) from memory and splats it across all lanes of a 128-bit vector.
      * Pops address from stack. Requires 8-byte alignment.
      */
-    load64_splat: (offset = 0) => [byte`\xfd\x0a`, 8, encodeLEB128("u32", offset)],
+    load64_splat: (offset = 0) => [byte`\xfd\x0a`, 3, encodeLEB128("u32", offset)],
     /**
      * Stores a 128-bit vector into linear memory at the address popped from the stack.
      * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
      */
-    store: (offset = 0) => [byte`\xfd\x0b`, 16, encodeLEB128("u32", offset)],
+    store: (offset = 0) => [byte`\xfd\x0b`, 4, encodeLEB128("u32", offset)],
     /**
      * Performs a bitwise NOT operation on a 128-bit vector.
      * Pops one vector and pushes the result of flipping all bits.
@@ -1242,52 +1242,52 @@ export default {
      * Loads a single byte from memory into a specific lane of a 128-bit vector.
      * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
      */
-    load8_lane: (lane, offset = 0) => [byte`\xfd\x54`, 1, encodeLEB128("u32", offset), lane],
+    load8_lane: (lane, offset = 0) => [byte`\xfd\x54`, 0, encodeLEB128("u32", offset), lane],
     /**
      * Loads a single halfword (16 bits) from memory into a specific lane of a 128-bit vector.
      * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
      */
-    load16_lane: (lane, offset = 0) => [byte`\xfd\x55`, 2, encodeLEB128("u32", offset), lane],
+    load16_lane: (lane, offset = 0) => [byte`\xfd\x55`, 1, encodeLEB128("u32", offset), lane],
     /**
      * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
      * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
      */
-    load32_lane: (lane, offset = 0) => [byte`\xfd\x56`, 4, encodeLEB128("u32", offset), lane],
+    load32_lane: (lane, offset = 0) => [byte`\xfd\x56`, 2, encodeLEB128("u32", offset), lane],
     /**
      * Loads a single doubleword (64 bits) from memory into a specific lane of a 128-bit vector.
      * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
      */
-    load64_lane: (lane, offset = 0) => [byte`\xfd\x57`, 8, encodeLEB128("u32", offset), lane],
+    load64_lane: (lane, offset = 0) => [byte`\xfd\x57`, 3, encodeLEB128("u32", offset), lane],
     /**
      * Stores a single byte from a specific lane of a 128-bit vector into memory.
      * Pops an address and a vector, writes the specified lane's byte to memory.
      */
-    store8_lane: (lane, offset = 0) => [byte`\xfd\x58`, 1 , encodeLEB128("u32", offset), lane],
+    store8_lane: (lane, offset = 0) => [byte`\xfd\x58`, 0 , encodeLEB128("u32", offset), lane],
     /**
      * Stores a single halfword (16 bits) from a specific lane of a 128-bit vector into memory.
      * Pops an address and a vector, writes the specified lane's halfword to memory.
      */
-    store16_lane: (lane, offset = 0) => [byte`\xfd\x59`, 2 , encodeLEB128("u32", offset), lane],
+    store16_lane: (lane, offset = 0) => [byte`\xfd\x59`, 1 , encodeLEB128("u32", offset), lane],
     /**
      * Stores a single word (32 bits) from a specific lane of a 128-bit vector into memory.
      * Pops an address and a vector, writes the specified lane's word to memory.
      */
-    store32_lane: (lane, offset = 0) => [byte`\xfd\x5a`, 4 , encodeLEB128("u32", offset), lane],
+    store32_lane: (lane, offset = 0) => [byte`\xfd\x5a`, 2 , encodeLEB128("u32", offset), lane],
     /**
      * Stores a single doubleword (64 bits) from a specific lane of a 128-bit vector into memory.
      * Pops an address and a vector, writes the specified lane's doubleword to memory.
      */
-    store64_lane: (lane, offset = 0) => [byte`\xfd\x5b`, 8, encodeLEB128("u32", offset), lane],
+    store64_lane: (lane, offset = 0) => [byte`\xfd\x5b`, 3, encodeLEB128("u32", offset), lane],
     /**
      * Loads a single word (32 bits) from memory and zero-extends it into a 128-bit vector.
      * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
      */
-    load32_zero: (offset = 0) => [byte`\xfd\x5c`, 4, encodeLEB128("u32", offset)],
+    load32_zero: (offset = 0) => [byte`\xfd\x5c`, 2, encodeLEB128("u32", offset)],
     /**
      * Loads a single doubleword (64 bits) from memory and zero-extends it into a 128-bit vector.
      * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
      */
-    load64_zero: (offset = 0) => [byte`\xfd\x5d`, 8, encodeLEB128("u32", offset)],
+    load64_zero: (offset = 0) => [byte`\xfd\x5d`, 3, encodeLEB128("u32", offset)],
     /**
      * Pushes a 128-bit constant vector onto the stack.
      * The immediate value is encoded as a literal 128-bit value.
