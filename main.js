@@ -54,7 +54,7 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   [instr.call, addTwo_wasm],
 // ], { export: "foo" });
 
-app.newMemory(0, undefined, "memory")
+app.newMemory(1, undefined, "memory")
 
 app.newFunction([
   [Type.i64], [Type.i64]  // args, rets
@@ -107,6 +107,14 @@ app.newFunction([[Type.externref, Type.externref, Type.i32], [Type.externref]], 
   W.select(Type.externref),
 ], { export: "check_selectt" })
 
+app.newFunction([[], [Type.i32]], [], [
+  W.I32.const(0),
+  W.I32.const(-1_234_567_890),
+  W.I32.store16(),
+  W.I32.const(0),
+  W.I32.load16_s(),
+], { export: "testt" })
+
 const { instance, module } = await app.compile();
 
 console.log(instance.exports)
@@ -126,6 +134,8 @@ instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false")
 //   y.cast(W.I32).add(x).store(x);
 //   return [x, x, y];
 // })
+
+console.log(instance.exports.testt())
 
 /**
  * There, app.function changes global context to the context of current app,

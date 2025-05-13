@@ -1,13 +1,472 @@
 import { byte } from "./helpers.js";
 import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
 
+const Bar = new Proxy(Foo, {
+	get: (a, b, c) => {
+		const tmp = new a()
+		return (..._) => (tmp[b](..._), tmp)
+	}
+})
+export const I32 = new Proxy(class I32_ {
+  accumulated = []
+
+  static bytes(val = null) {
+    if (["number", "bigint"].includes(typeof val))
+      return this.const(val)
+    if (val instanceof I32)
+      return accumulated
+    if (typeof val === "object" && val?.prototype?.bytes !== undefined)
+      return val.prototype.bytes(val)
+    console.error(`Unknown value`, val)
+    throw "Can't generate bytes"
+  }
+  /**
+   * Loads an i32 value from linear memory at the address popped from the stack.
+   * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
+   * Requires alignment byte and offset byte right after.
+   */
+  load(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.accumulated.push(I32.bytes(ptr))
+    this.accumulated.push([byte`\x28`, 4, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Loads an 8-bit value from linear memory, sign-extends it to i32.
+   * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load8_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.accumulated.push(I32.bytes(ptr))
+    this.accumulated.push([byte`\x2c`, 1, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Loads an 8-bit value from linear memory, zero-extends it to i32.
+   * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load8_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.accumulated.push(I32.bytes(ptr))
+    this.accumulated.push([byte`\x2d`, 1, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Loads a 16-bit value from linear memory, sign-extends it to i32.
+   * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load16_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.accumulated.push(I32.bytes(ptr))
+    this.accumulated.push([byte`\x2e`, 2, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Loads a 16-bit value from linear memory, zero-extends it to i32.
+   * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load16_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.accumulated.push(I32.bytes(ptr))
+    this.accumulated.push([byte`\x2f`, 2, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Stores an i32 value into linear memory at address popped from stack.
+   * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store(offset = 0) {
+    this.accumulated.push([byte`\x36`, 4, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Stores the low 8 bits of an i32 value into memory.
+   * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store8(offset = 0) {
+    this.accumulated.push([byte`\x3a`, 1, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Stores the low 16 bits of an i32 value into memory.
+   * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store16(offset = 0) {
+    this.accumulated.push([byte`\x3b`, 2, encodeLEB128("u32", offset)])
+    return this
+  }
+  /**
+   * Pushes a 32-bit integer constant onto the stack.
+   * The immediate value is encoded as a signed LEB128.
+   */
+  const(num = 0, type = "i32") {
+    this.accumulated.push([byte`\x41`, encodeLEB128(type, num)])
+    return this
+  }
+  /**
+   * Checks if the top i32 value is zero.
+   * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
+   */
+  eqz() {
+    this.accumulated.push(byte`\x45`)
+    return this
+  }
+  /**
+   * Equality comparison for i32.
+   * Pops 2 values, pushes 1 if equal, else 0.
+   */
+  eq(val = null) {
+    if (val !== null) 
+      this.accumulated.push()
+    this.accumulated.push(byte`\x46`)
+    return this
+  }
+  /**
+   * Inequality comparison for i32.
+   * Pops 2 values, pushes 1 if not equal, else 0.
+   */
+  ne() {
+    this.accumulated.push(byte`\x47`)
+    return this
+  }
+  /**
+   * Signed less-than comparison for i32.
+   * Pops 2 values, pushes 1 if (a < b) signed, else 0.
+   */
+  lt_s() {
+    this.accumulated.push(byte`\x48`)
+    return this
+  }
+  /**
+   * Unsigned less-than comparison for i32.
+   * Pops 2 values, pushes 1 if (a < b) unsigned, else 0.
+   */
+  lt_u() {
+    this.accumulated.push(byte`\x49`)
+    return this
+  }
+  /**
+   * Signed greater-than comparison for i32.
+   * Pops 2 values, pushes 1 if (a > b) signed, else 0.
+   */
+  gt_s() {
+    this.accumulated.push(byte`\x4a`)
+    return this
+  }
+  /**
+   * Unsigned greater-than comparison for i32.
+   * Pops 2 values, pushes 1 if (a > b) unsigned, else 0.
+   */
+  gt_u() {
+    this.accumulated.push(byte`\x4b`)
+    return this
+  }
+  /**
+   * Signed less-than-or-equal comparison for i32.
+   * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0.
+   */
+  le_s() {
+    this.accumulated.push(byte`\x4c`)
+    return this
+  }
+  /**
+   * Unsigned less-than-or-equal comparison for i32.
+   * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0.
+   */
+  le_u() {
+    this.accumulated.push(byte`\x4d`)
+    return this
+  }
+  /**
+   * Signed greater-than-or-equal comparison for i32.
+   * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0.
+   */
+  ge_s() {
+    this.accumulated.push(byte`\x4e`)
+    return this
+  }
+  /**
+   * Unsigned greater-than-or-equal comparison for i32.
+   * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
+   */
+  ge_u() {
+    this.accumulated.push(byte`\x4f`)
+    return this
+  }
+  /**
+   * Counts leading zero bits in i32.
+   * Pops 1 value, pushes the count of leading zeros (0-32) as i32.
+   */
+  clz() {
+    this.accumulated.push(byte`\x67`)
+    return this
+  }
+  /**
+   * Counts trailing zero bits in i32.
+   * Pops 1 value, pushes the count of trailing zeros (0-32) as i32.
+   */
+  ctz() {
+    this.accumulated.push(byte`\x68`)
+    return this
+  }
+  /**
+   * Counts the number of set bits (1s) in i32.
+   * Pops 1 value, pushes the population count as i32.
+   */
+  popcnt() {
+    this.accumulated.push(byte`\x69`)
+    return this
+  }
+  /**
+   * Integer addition for i32.
+   * Pops 2 values, pushes (a + b) as i32 (wraps on overflow).
+   */
+  add() {
+    this.accumulated.push(byte`\x6a`)
+    return this
+  }
+  /**
+   * Integer subtraction for i32.
+   * Pops 2 values, pushes (a - b) as i32 (wraps on overflow).
+   */
+  sub() {
+    this.accumulated.push(byte`\x6b`)
+    return this
+  }
+  /**
+   * Integer multiplication for i32.
+   * Pops 2 values, pushes (a * b) as i32 (wraps on overflow).
+   */
+  mul() {
+    this.accumulated.push(byte`\x6c`)
+    return this
+  }
+  /**
+   * Signed integer division for i32.
+   * Pops 2 values, pushes (a / b) as i32.
+   * Traps if b = 0 or division overflows (e.g., INT32_MIN / -1).
+   */
+  div_s() {
+    this.accumulated.push(byte`\x6d`)
+    return this
+  }
+  /**
+   * Unsigned integer division for i32.
+   * Pops 2 values, pushes (a / b) as i32.
+   * Traps if b = 0.
+   */
+  div_u() {
+    this.accumulated.push(byte`\x6e`)
+    return this
+  }
+  /**
+   * Signed integer remainder for i32.
+   * Pops 2 values, pushes (a % b) as i32.
+   * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
+   */
+  rem_s() {
+    this.accumulated.push(byte`\x6f`)
+    return this
+  }
+  /**
+   * Unsigned integer remainder for i32.
+   * Pops 2 values, pushes (a % b) as i32.
+   * Traps if b = 0.
+   */
+  rem_u() {
+    this.accumulated.push(byte`\x70`)
+    return this
+  }
+  /**
+   * Bitwise AND for i32.
+   * Pops 2 values, pushes (a & b) as i32.
+   */
+  and() {
+    this.accumulated.push(byte`\x71`)
+    return this
+  }
+  /**
+   * Bitwise OR for i32.
+   * Pops 2 values, pushes (a | b) as i32.
+   */
+  or() {
+    this.accumulated.push(byte`\x72`)
+    return this
+  }
+  /**
+   * Bitwise XOR for i32.
+   * Pops 2 values, pushes (a ^ b) as i32.
+   */
+  xor() {
+    this.accumulated.push(byte`\x73`)
+    return this
+  }
+  /**
+   * Logical left shift for i32.
+   * Pops 2 values (a, b), pushes (a << (b % 32)) as i32.
+   */
+  shl() {
+    this.accumulated.push(byte`\x74`)
+    return this
+  }
+  /**
+   * Arithmetic right shift for i32 (sign-preserving).
+   * Pops 2 values (a, b), pushes (a >> (b % 32)) as i32.
+   */
+  shr_s() {
+    this.accumulated.push(byte`\x75`)
+    return this
+  }
+  /**
+   * Logical right shift for i32 (zero-filling).
+   * Pops 2 values (a, b), pushes (a >>> (b % 32)) as i32.
+   */
+  shr_u() {
+    this.accumulated.push(byte`\x76`)
+    return this
+  }
+  /**
+   * Bitwise rotate left for i32.
+   * Pops 2 values (a, b), rotates bits left by (b % 32) positions.
+   */
+  rotl() {
+    this.accumulated.push(byte`\x77`)
+    return this
+  }
+  /**
+   * Bitwise rotate right for i32.
+   * Pops 2 values (a, b), rotates bits right by (b % 32) positions.
+   */
+  rotr() {
+    this.accumulated.push(byte`\x78`)
+    return this
+  }
+  /**
+   * Wraps i64 to i32 (discards high 32 bits).
+   * Pops 1 i64 value, pushes low 32 bits as i32.
+   */
+  wrap_i64() {
+    this.accumulated.push(byte`\xa7`)
+    return this
+  }
+  /**
+   * Truncates f32 to signed i32.
+   * Pops 1 f32 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of i32 range.
+   */
+  trunc_f32_s() {
+    this.accumulated.push(byte`\xa8`)
+    return this
+  }
+  /**
+   * Truncates f32 to unsigned i32.
+   * Pops 1 f32 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of u32 range.
+   */
+  trunc_f32_u() {
+    this.accumulated.push(byte`\xa9`)
+    return this
+  }
+  /**
+   * Truncates f64 to signed i32.
+   * Pops 1 f64 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of i32 range.
+   */
+  trunc_f64_s() {
+    this.accumulated.push(byte`\xaa`)
+    return this
+  }
+  /**
+   * Truncates f64 to unsigned i32.
+   * Pops 1 f64 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of u32 range.
+   */
+  trunc_f64_u() {
+    this.accumulated.push(byte`\xab`)
+    return this
+  }
+  /**
+   * Reinterprets f32 bits as i32 (bitwise copy).
+   * Pops 1 value, pushes raw bits as i32.
+   */
+  reinterpret_f32() {
+    this.accumulated.push(byte`\xbc`)
+    return this
+  }
+  /**
+   * Sign-extends 8-bit value to 32-bit i32.
+   * Pops 1 value, treats low 8 bits as signed and extends.
+   */
+  extend8_s() {
+    this.accumulated.push(byte`\xc0`)
+    return this
+  }
+  /**
+   * Sign-extends 16-bit value to 32-bit i32.
+   * Pops 1 value, treats low 16 bits as signed and extends.
+   */
+  extend16_s() {
+    this.accumulated.push(byte`\xc1`)
+    return this
+  }
+  /**
+   * Saturating truncation of f32 to signed i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   */
+  trunc_sat_f32_s() {
+    this.accumulated.push(byte`\xfc\x00`)
+    return this
+  }
+  /**
+   * Saturating truncation of f32 to unsigned i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   */
+  trunc_sat_f32_u() {
+    this.accumulated.push(byte`\xfc\x01`)
+    return this
+  }
+  /**
+   * Saturating truncation of f64 to signed i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   */
+  trunc_sat_f64_s() {
+    this.accumulated.push(byte`\xfc\x02`)
+    return this
+  }
+  /**
+   * Saturating truncation of f64 to unsigned i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   */
+  trunc_sat_f64_u() {
+    this.accumulated.push(byte`\xfc\x03`)
+    return this
+  }
+}, {
+	get: (a, b, c) => {
+	  if (typeof a[b] === "function") return a[b]
+		const tmp = new a()
+		return (..._) => (tmp[b](..._), tmp)
+	}  
+ })
+let W = {}
 /**
  * Manually transcribed 436 wasm instructions!
  * And each commented by an AI!
  *
  * TODO: make each function into it's own function with checks and whatnot
  */
-export default {
+class W {
   /**
    * Unreachable opcode: Indicates an invalid or undefined state.
    * Traps the program when executed.
@@ -217,278 +676,6 @@ export default {
    * Passive data segments can no longer be used after this operation.
    */
   data_drop: (index) => [byte`\xfc\x09`, index],
-  I32: {
-    /**
-     * Loads an i32 value from linear memory at the address popped from the stack.
-     * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
-     * Requires alignment byte and offset byte right after.
-     */
-    load: (offset = 0) => [byte`\x28`, 4, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, sign-extends it to i32.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_s: (offset = 0) => [byte`\x2c`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, zero-extends it to i32.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_u: (offset = 0) => [byte`\x2d`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, sign-extends it to i32.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_s: (offset = 0) => [byte`\x2e`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, zero-extends it to i32.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_u: (offset = 0) => [byte`\x2f`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Stores an i32 value into linear memory at address popped from stack.
-     * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store: (offset = 0) => [byte`\x36`, 4, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 8 bits of an i32 value into memory.
-     * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store8: (offset = 0) => [byte`\x3a`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 16 bits of an i32 value into memory.
-     * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store16: (offset = 0) => [byte`\x3b`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 32-bit integer constant onto the stack.
-     * The immediate value is encoded as a signed LEB128.
-     */
-    const: (num = 0, type = "i32") => [byte`\x41`, encodeLEB128(type, num)],
-    /**
-     * Checks if the top i32 value is zero.
-     * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
-     */
-    eqz: byte`\x45`,
-    /**
-     * Equality comparison for i32.
-     * Pops 2 values, pushes 1 if equal, else 0.
-     */
-    eq: byte`\x46`,
-    /**
-     * Inequality comparison for i32.
-     * Pops 2 values, pushes 1 if not equal, else 0.
-     */
-    ne: byte`\x47`,
-    /**
-     * Signed less-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a < b) signed, else 0.
-     */
-    lt_s: byte`\x48`,
-    /**
-     * Unsigned less-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a < b) unsigned, else 0.
-     */
-    lt_u: byte`\x49`,
-    /**
-     * Signed greater-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a > b) signed, else 0.
-     */
-    gt_s: byte`\x4a`,
-    /**
-     * Unsigned greater-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a > b) unsigned, else 0.
-     */
-    gt_u: byte`\x4b`,
-    /**
-     * Signed less-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0.
-     */
-    le_s: byte`\x4c`,
-    /**
-     * Unsigned less-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0.
-     */
-    le_u: byte`\x4d`,
-    /**
-     * Signed greater-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0.
-     */
-    ge_s: byte`\x4e`,
-    /**
-     * Unsigned greater-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
-     */
-    ge_u: byte`\x4f`,
-    /**
-     * Counts leading zero bits in i32.
-     * Pops 1 value, pushes the count of leading zeros (0-32) as i32.
-     */
-    clz: byte`\x67`,
-    /**
-     * Counts trailing zero bits in i32.
-     * Pops 1 value, pushes the count of trailing zeros (0-32) as i32.
-     */
-    ctz: byte`\x68`,
-    /**
-     * Counts the number of set bits (1s) in i32.
-     * Pops 1 value, pushes the population count as i32.
-     */
-    popcnt: byte`\x69`,
-    /**
-     * Integer addition for i32.
-     * Pops 2 values, pushes (a + b) as i32 (wraps on overflow).
-     */
-    add: byte`\x6a`,
-    /**
-     * Integer subtraction for i32.
-     * Pops 2 values, pushes (a - b) as i32 (wraps on overflow).
-     */
-    sub: byte`\x6b`,
-    /**
-     * Integer multiplication for i32.
-     * Pops 2 values, pushes (a * b) as i32 (wraps on overflow).
-     */
-    mul: byte`\x6c`,
-    /**
-     * Signed integer division for i32.
-     * Pops 2 values, pushes (a / b) as i32.
-     * Traps if b = 0 or division overflows (e.g., INT32_MIN / -1).
-     */
-    div_s: byte`\x6d`,
-    /**
-     * Unsigned integer division for i32.
-     * Pops 2 values, pushes (a / b) as i32.
-     * Traps if b = 0.
-     */
-    div_u: byte`\x6e`,
-    /**
-     * Signed integer remainder for i32.
-     * Pops 2 values, pushes (a % b) as i32.
-     * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
-     */
-    rem_s: byte`\x6f`,
-    /**
-     * Unsigned integer remainder for i32.
-     * Pops 2 values, pushes (a % b) as i32.
-     * Traps if b = 0.
-     */
-    rem_u: byte`\x70`,
-    /**
-     * Bitwise AND for i32.
-     * Pops 2 values, pushes (a & b) as i32.
-     */
-    and: byte`\x71`,
-    /**
-     * Bitwise OR for i32.
-     * Pops 2 values, pushes (a | b) as i32.
-     */
-    or: byte`\x72`,
-    /**
-     * Bitwise XOR for i32.
-     * Pops 2 values, pushes (a ^ b) as i32.
-     */
-    xor: byte`\x73`,
-    /**
-     * Logical left shift for i32.
-     * Pops 2 values (a, b), pushes (a << (b % 32)) as i32.
-     */
-    shl: byte`\x74`,
-    /**
-     * Arithmetic right shift for i32 (sign-preserving).
-     * Pops 2 values (a, b), pushes (a >> (b % 32)) as i32.
-     */
-    shr_s: byte`\x75`,
-    /**
-     * Logical right shift for i32 (zero-filling).
-     * Pops 2 values (a, b), pushes (a >>> (b % 32)) as i32.
-     */
-    shr_u: byte`\x76`,
-    /**
-     * Bitwise rotate left for i32.
-     * Pops 2 values (a, b), rotates bits left by (b % 32) positions.
-     */
-    rotl: byte`\x77`,
-    /**
-     * Bitwise rotate right for i32.
-     * Pops 2 values (a, b), rotates bits right by (b % 32) positions.
-     */
-    rotr: byte`\x78`,
-    /**
-     * Wraps i64 to i32 (discards high 32 bits).
-     * Pops 1 i64 value, pushes low 32 bits as i32.
-     */
-    wrap_i64: byte`\xa7`,
-    /**
-     * Truncates f32 to signed i32.
-     * Pops 1 f32 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of i32 range.
-     */
-    trunc_f32_s: byte`\xa8`,
-    /**
-     * Truncates f32 to unsigned i32.
-     * Pops 1 f32 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of u32 range.
-     */
-    trunc_f32_u: byte`\xa9`,
-    /**
-     * Truncates f64 to signed i32.
-     * Pops 1 f64 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of i32 range.
-     */
-    trunc_f64_s: byte`\xaa`,
-    /**
-     * Truncates f64 to unsigned i32.
-     * Pops 1 f64 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of u32 range.
-     */
-    trunc_f64_u: byte`\xab`,
-    /**
-     * Reinterprets f32 bits as i32 (bitwise copy).
-     * Pops 1 value, pushes raw bits as i32.
-     */
-    reinterpret_f32: byte`\xbc`,
-    /**
-     * Sign-extends 8-bit value to 32-bit i32.
-     * Pops 1 value, treats low 8 bits as signed and extends.
-     */
-    extend8_s: byte`\xc0`,
-    /**
-     * Sign-extends 16-bit value to 32-bit i32.
-     * Pops 1 value, treats low 16 bits as signed and extends.
-     */
-    extend16_s: byte`\xc1`,
-    /**
-     * Saturating truncation of f32 to signed i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
-     */
-    trunc_sat_f32_s: byte`\xfc\x00`,
-    /**
-     * Saturating truncation of f32 to unsigned i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
-     */
-    trunc_sat_f32_u: byte`\xfc\x01`,
-    /**
-     * Saturating truncation of f64 to signed i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
-     */
-    trunc_sat_f64_s: byte`\xfc\x02`,
-    /**
-     * Saturating truncation of f64 to unsigned i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
-     */
-    trunc_sat_f64_u: byte`\xfc\x03`,
-  },
   I64: {
     /**
      * Loads an i64 value from linear memory at the address popped from the stack.
