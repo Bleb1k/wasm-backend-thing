@@ -10,12 +10,12 @@ const DEBUG = IS_DEBUG
       + (val > 9 ? ` (${val})` : "") : val
     // console.log(v, v.length)
     return v instanceof Array && v.length === 3 && typeof v[2] === "number"
-      ? `${((start += v[2]) - v[2]).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+      ? `${((start += v[2]) - v[2]).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
       : v instanceof Array && v.length === 2
-        ? `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+        ? `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
         : v instanceof Array && v.length === 0
           ? ""
-          : `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`
+          : `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`
   }
   ).filter(v => v).join("\n")
     }`)
@@ -715,6 +715,7 @@ export default class {
   assembleCodeSection() {
     if (this.funcs.length === 0) return;
     function processObjectData(obj) {
+      // console.log("hahaha", JSON.stringify(obj))
       switch (false) {
         case !obj?.blocktype:
           return obj.blocktype instanceof Array
@@ -722,7 +723,11 @@ export default class {
             : obj.blocktype
         case !obj?.functype:
           return this.getFuncTypeIndex(obj.functype)
+        case !obj?.accumulated:
+          return obj.accumulated.flat(10)
         default:
+          if (typeof obj === "object" && !(obj instanceof Array))
+            console.log("Unknown object:", obj)
           return obj
       }
     }
@@ -732,6 +737,7 @@ export default class {
         ...func.locals.flatMap(([type, count]) => [count, type]),
         ...func.code.flat(10).flatMap(v => processObjectData(v)),
       ];
+      console.log(fn_buf)
       return [...leb("u32", fn_buf.length), ...fn_buf];
     }
     const funcs = this.funcs.map(assembleFuncBody);
@@ -760,8 +766,12 @@ export default class {
           [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]
         ),
         ...func.code
-          .flatMap(v => v[0] instanceof Array && v.length > 2 ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v])
+          .flatMap(v => (v?.accumulated) ? v.accumulated : [v])
+          .flatMap(v => (v[0] instanceof Array && v.length > 2)
+            ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v]
+          )
           .map(v => {
+            console.log(v)
             const first_is_instr = v[0] instanceof Array
             // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
             if (!first_is_instr) return [debug_byte_arr(v), W[v]]
@@ -859,7 +869,7 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    // if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i, debug_byte_arr([v])))
+    // if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i.toString(16), debug_byte_arr([v])))
 
     return new Uint8Array(this.#exe)
   }

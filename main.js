@@ -4,6 +4,7 @@
 
 import App, { decodeIEEE754, encodeLEB128, import_kind, mutability, Type } from "./lib.js";
 import W from "./instructions.js";
+import { I32 } from "./expand_instr.js"
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -108,11 +109,15 @@ app.newFunction([[Type.externref, Type.externref, Type.i32], [Type.externref]], 
 ], { export: "check_selectt" })
 
 app.newFunction([[], [Type.i32]], [], [
-  W.I32.const(0),
-  W.I32.const(-1_234_567_890),
-  W.I32.store16(),
-  W.I32.const(0),
-  W.I32.load16_s(),
+  // I32
+  //   .const(-1_234_567_890)
+  //   .store16(0),
+  // I32.load16_s(0),
+  I32.const(0),
+  I32.const(-1234567890),
+  I32.store16(),
+  I32.const(0),
+  I32.load16_s(),
 ], { export: "testt" })
 
 const { instance, module } = await app.compile();
