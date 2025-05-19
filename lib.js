@@ -1,3 +1,4 @@
+import { InstrArray } from "./expand_instr.js";
 import { byte, guard, str } from "./helpers.js";
 import W from "./instructions.js";
 import raw_instr from "./instructions.js";
@@ -32,7 +33,7 @@ const debug_byte_arr = IS_DEBUG
     }, [""]).join(" ")
   : (_) => void _
 const debug_str = IS_DEBUG
-  ? (byte_arr) => '"' + byte_arr.map(v => String.fromCodePoint(v)).join("") + '"'
+  ? (byte_arr) => '"' + (typeof byte_arr === "string" ? byte_arr : byte_arr.map(v => String.fromCodePoint(v)).join("")) + '"'
   : (_) => void _
 
 export const Type = {
@@ -349,7 +350,6 @@ export const import_kind = {
   Func: (args = [], rets = []) => ({
     code: 0,
     type: byte`\x60${args.length}${args}${rets.length}${rets}`,
-    func_type: [args, rets],
   }),
   func: 0,
 
@@ -398,19 +398,16 @@ export default class {
    */
   newImport(namespace, variables) {
     guard({namespace, variables})
+    const result = {}
     for (const v of variables) {
       const [name, kind] = v;
-      // console.log(kind)
-      this.imports.push({ namespace, name, kind });
       if (kind.code === import_kind.func) {
-        this.functions_count += 1;
-        const t = Type.Func(...kind.func_type)
-        if (this.types[t] === undefined) {
-          this.types[t] = this.types.count
-          this.types[this.types.count++] = t
-        }
+        result[name] = this.functions_count++;
+        kind.type = this.getFuncTypeIndex(kind.type)
       }
+      this.imports.push({ namespace, name, kind });
     }
+    return result
   }
 
   /**
@@ -558,32 +555,82 @@ export default class {
     }
   }
 
+  /*
+  
+
+0000000: 0061 736d                ; WASM_BINARY_MAGIC
+0000004: 0100 0000                ; WASM_BINARY_VERSION
+; section "Type" (1)
+0000008: 01                       ; section code
+0000009: 00                       ; section size (guess)
+000000a: 01                       ; num types
+; func type 0
+000000b: 60                       ; func
+000000c: 01                       ; num params
+000000d: 7f                       ; i32
+000000e: 00                       ; num results
+0000009: 05                       ; FIXUP section size
+; section "Import" (2)
+000000f: 02                       ; section code
+0000010: 00                       ; section size (guess)
+0000011: 01                       ; num imports
+; import header 0
+0000012: 03                       ; string length
+0000013: 666f 6f             foo  ; import module name
+0000016: 03                       ; string length
+0000017: 6261 72             bar  ; import field name
+000001a: 00                       ; import kind
+000001b: 00                       ; import signature index
+0000010: 0b                       ; FIXUP section size
+; section "Function" (3)
+; only iterates over function bodies
+000001c: 03                       ; section code
+000001d: 00                       ; section size (guess)
+000001e: 01                       ; num functions
+000001f: 00                       ; function 0 signature index
+000001d: 02                       ; FIXUP section size
+; section "Export" (7)
+; this one iterates over functions by index,
+; so I need to keep track of how many functions get imported
+0000020: 07                       ; section code
+0000021: 00                       ; section size (guess)
+0000022: 01                       ; num exports
+0000023: 03                       ; string length
+0000024: 6261 72                                  bar  ; export name
+0000027: 00                       ; export kind
+0000028: 01                       ; export func index
+0000021: 07                       ; FIXUP section size
+*/
   assembleImportSection() {
     // const buf = []
-    console.log("TODO: import section");
-    // for (const imprt of this.imports) {
-    //   const res = [...str([imprt.namespace]), ...str([imprt.name]), imprt.kind.code]
-    //   switch (imprt.kind.code) {
-    //     case import_kind.func:
-    //       // console.log("yay", imprt, imprt.kind.type, Type.Func(...imprt.kind.func_type), this.types[Type.Func(...imprt.kind.func_type)])
-    //       res.push(this.types[Type.Func(...imprt.kind.func_type)])
-    //       break;
-    //     default:
-    //       res.push(imprt.kind.type)
-    //     // console.log(imprt.kind.type)
-    //     // console.warn(`skipping assembling '${imprt.namespace}.${imprt.name}' because it is unhandled :(`)
-    //     // console.log("---------------")
-    //   }
-    //   // console.log("res:", res)
-    //   buf.push(res)
-    // }
-    // // console.log(buf)
-    // const count = buf.length
-    // const res = buf.flat(10);
-    // const size = res.length + 1
-    // // console.log(res)
-    // // console.log("res:", [section.import, size, count, ...res].map(n => n.toString(16).padStart(2,0)).join())
-    // return [section.import, size, count, ...res];
+    const res = this.imports.flatMap(i => [
+      ...str([i.namespace]),
+      ...str([i.name]),
+      i.kind.code,
+      i.kind.type,
+    ]).flat(10)
+    const count = this.imports.length
+    const size = leb("u32", res.length + 1)
+
+    DEBUG(this.#exe.length, [
+      [section.import, "section_type"],
+      [size.length > 1 ? debug_byte_arr(size) : size[0].toString(16), "section_size", size.length],
+      [count, "count"],
+      ...this.imports.flatMap((i, idx) => [
+        [[], `Import ${idx}`, 0],
+        [debug_str(i.namespace), "namespace", str([i.namespace]).length],
+        [debug_str(i.name), "name", str([i.name]).length],
+        [i.kind.code, "import_kind"],
+        [i.kind.type, "import_signature_index"],
+      ])
+    ], "Import section")
+
+    this.#exe.push(
+      section.import,
+      ...size,
+      count,
+      ...res,
+    )
   }
 
   assembleFunctionSection() {
@@ -737,7 +784,7 @@ export default class {
         ...func.locals.flatMap(([type, count]) => [count, type]),
         ...func.code.flat(10).flatMap(v => processObjectData(v)),
       ];
-      console.log(fn_buf)
+      // console.log("fn_buf:", fn_buf)
       return [...leb("u32", fn_buf.length), ...fn_buf];
     }
     const funcs = this.funcs.map(assembleFuncBody);
@@ -758,26 +805,35 @@ export default class {
       this.funcs.length,
     )
 
+    let acc_len = this.#exe.length
     this.funcs.forEach((func, i) => {
-      DEBUG(this.#exe.length, [
+      DEBUG(acc_len, [
         [unleb(funcs[i]).value, `function len`, unleb(funcs[i]).bytesRead],
         [func.locals.length, "local declarations count"],
         ...func.locals.map(([type, count]) =>
           [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]
         ),
         ...func.code
-          .flatMap(v => (v?.accumulated) ? v.accumulated : [v])
+          // .map(v => (console.log("v1:", v), v))
+          .flatMap(v => v instanceof InstrArray ? v : [v])
+          // .map(v => (console.log("v2:", v), v))
           .flatMap(v => (v[0] instanceof Array && v.length > 2)
             ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v]
           )
+          // .map(v => (console.log("v3:", v), v))
           .map(v => {
-            console.log(v)
             const first_is_instr = v[0] instanceof Array
             // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
             if (!first_is_instr) return [debug_byte_arr(v), W[v]]
             const instr = W[v[0]]
             let val = v[1];
             switch (true) {
+              case instr.startsWith("i32_store"):
+              case instr.startsWith("i32_load"):
+              case instr.startsWith("i64_store"):
+              case instr.startsWith("i64_load"):
+                val = `alignment: ${2**val[0]}, offset: ${unleb(val, 1).value}`
+                break
               case instr.startsWith("i32_"):
               case instr.startsWith("i64_"):
                 val = unleb(val).value
@@ -809,6 +865,8 @@ export default class {
               case instr.startsWith("global_"):
               case instr.startsWith("br"):
               case instr.startsWith("memory_"):
+              case instr === "call":
+                // instr/val are not changed
                 break
               case instr.startsWith("selectt"):
                 console.error("Todo: proper select debug info")
@@ -819,6 +877,7 @@ export default class {
             return [debug_byte_arr(v.map(obj => processObjectData(obj))), `${instr} ${val}`, v.flat(10).length]
           })
       ], `Function ${i}`)
+      acc_len += funcs[i].length
     })
 
     this.#exe.push(...funcs.flat());

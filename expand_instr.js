@@ -1,20 +1,20 @@
 import { byte } from "./helpers.js";
 import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
 
-export const I32 = new Proxy(class I32_ {
-  accumulated = []
+export class InstrArray extends Array {}
 
+export const I32 = new Proxy(class I32_ extends InstrArray {
   static bytes(val = null) {
     console.log(
       "bytes",
       val,
       ["number", "bigint"].includes(typeof val),
-      JSON.stringify(this.const(val).accumulated[0]),
+      JSON.stringify(this.const(val)[0]),
     )
     if (["number", "bigint"].includes(typeof val))
-      return this.const(val).accumulated[0]
-    if (val?.accumulated) {
-      return val.accumulated
+      return this.const(val)[0]
+    if (val instanceof Array) {
+      return val
     }
     if (typeof val === "object" && val?.prototype?.bytes !== undefined)
       return val.prototype.bytes(val)
@@ -28,8 +28,8 @@ export const I32 = new Proxy(class I32_ {
    */
   load(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.push(I32.bytes(ptr))
-    this.accumulated.push([byte`\x28`, 2, encodeLEB128("u32", offset)])
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x28`, [2, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -39,8 +39,8 @@ export const I32 = new Proxy(class I32_ {
    */
   load8_s(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.push(I32.bytes(ptr))
-    this.accumulated.push([byte`\x2c`, 0, encodeLEB128("u32", offset)])
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x2c`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -50,8 +50,8 @@ export const I32 = new Proxy(class I32_ {
    */
   load8_u(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.push(I32.bytes(ptr))
-    this.accumulated.push([byte`\x2d`, 0, encodeLEB128("u32", offset)])
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x2d`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -61,8 +61,8 @@ export const I32 = new Proxy(class I32_ {
    */
   load16_s(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.push(I32.bytes(ptr))
-    this.accumulated.push([byte`\x2e`, 1, encodeLEB128("u32", offset)])
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x2e`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -72,8 +72,8 @@ export const I32 = new Proxy(class I32_ {
    */
   load16_u(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.push(I32.bytes(ptr))
-    this.accumulated.push([byte`\x2f`, 1, encodeLEB128("u32", offset)])
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x2f`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -83,8 +83,8 @@ export const I32 = new Proxy(class I32_ {
    */
   store(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.unshift(I32.bytes(ptr))
-    this.accumulated.push([byte`\x36`, 2, encodeLEB128("u32", offset)])
+      this.unshift(I32.bytes(ptr))
+    this.push([byte`\x36`, [2, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -94,8 +94,8 @@ export const I32 = new Proxy(class I32_ {
    */
   store8(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.unshift(I32.bytes(ptr))
-    this.accumulated.push([byte`\x3a`, 0, encodeLEB128("u32", offset)])
+      this.unshift(I32.bytes(ptr))
+    this.push([byte`\x3a`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -105,8 +105,8 @@ export const I32 = new Proxy(class I32_ {
    */
   store16(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.accumulated.unshift(I32.bytes(ptr))
-    this.accumulated.push([byte`\x3b`, 1, encodeLEB128("u32", offset)])
+      this.unshift(I32.bytes(ptr))
+    this.push([byte`\x3b`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
   /**
@@ -114,7 +114,7 @@ export const I32 = new Proxy(class I32_ {
    * The immediate value is encoded as a signed LEB128.
    */
   const(num = 0, type = "i32") {
-    this.accumulated.push([byte`\x41`, encodeLEB128(type, num)])
+    this.push([byte`\x41`, encodeLEB128(type, num)])
     return this
   }
   /**
@@ -122,7 +122,7 @@ export const I32 = new Proxy(class I32_ {
    * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
    */
   eqz() {
-    this.accumulated.push(byte`\x45`)
+    this.push(byte`\x45`)
     return this
   }
   /**
@@ -131,8 +131,8 @@ export const I32 = new Proxy(class I32_ {
    */
   eq(val = null) {
     if (val !== null) 
-      this.accumulated.push()
-    this.accumulated.push(byte`\x46`)
+      this.push()
+    this.push(byte`\x46`)
     return this
   }
   /**
@@ -141,8 +141,8 @@ export const I32 = new Proxy(class I32_ {
    */
   ne(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x47`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x47`)
     return this
   }
   /**
@@ -151,8 +151,8 @@ export const I32 = new Proxy(class I32_ {
    */
   lt_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x48`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x48`)
     return this
   }
   /**
@@ -161,8 +161,8 @@ export const I32 = new Proxy(class I32_ {
    */
   lt_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x49`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x49`)
     return this
   }
   /**
@@ -171,8 +171,8 @@ export const I32 = new Proxy(class I32_ {
    */
   gt_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4a`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4a`)
     return this
   }
   /**
@@ -181,8 +181,8 @@ export const I32 = new Proxy(class I32_ {
    */
   gt_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4b`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4b`)
     return this
   }
   /**
@@ -191,8 +191,8 @@ export const I32 = new Proxy(class I32_ {
    */
   le_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4c`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4c`)
     return this
   }
   /**
@@ -201,8 +201,8 @@ export const I32 = new Proxy(class I32_ {
    */
   le_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4d`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4d`)
     return this
   }
   /**
@@ -211,8 +211,8 @@ export const I32 = new Proxy(class I32_ {
    */
   ge_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4e`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4e`)
     return this
   }
   /**
@@ -221,8 +221,8 @@ export const I32 = new Proxy(class I32_ {
    */
   ge_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x4f`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x4f`)
     return this
   }
   /**
@@ -231,8 +231,8 @@ export const I32 = new Proxy(class I32_ {
    */
   clz(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x67`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x67`)
     return this
   }
   /**
@@ -241,8 +241,8 @@ export const I32 = new Proxy(class I32_ {
    */
   ctz(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x68`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x68`)
     return this
   }
   /**
@@ -251,8 +251,8 @@ export const I32 = new Proxy(class I32_ {
    */
   popcnt(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x69`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x69`)
     return this
   }
   /**
@@ -261,8 +261,8 @@ export const I32 = new Proxy(class I32_ {
    */
   add(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6a`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6a`)
     return this
   }
   /**
@@ -271,8 +271,8 @@ export const I32 = new Proxy(class I32_ {
    */
   sub(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6b`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6b`)
     return this
   }
   /**
@@ -281,8 +281,8 @@ export const I32 = new Proxy(class I32_ {
    */
   mul(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6c`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6c`)
     return this
   }
   /**
@@ -292,8 +292,8 @@ export const I32 = new Proxy(class I32_ {
    */
   div_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6d`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6d`)
     return this
   }
   /**
@@ -303,8 +303,8 @@ export const I32 = new Proxy(class I32_ {
    */
   div_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6e`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6e`)
     return this
   }
   /**
@@ -314,8 +314,8 @@ export const I32 = new Proxy(class I32_ {
    */
   rem_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x6f`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x6f`)
     return this
   }
   /**
@@ -325,8 +325,8 @@ export const I32 = new Proxy(class I32_ {
    */
   rem_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x70`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x70`)
     return this
   }
   /**
@@ -335,8 +335,8 @@ export const I32 = new Proxy(class I32_ {
    */
   and(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x71`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x71`)
     return this
   }
   /**
@@ -345,8 +345,8 @@ export const I32 = new Proxy(class I32_ {
    */
   or(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x72`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x72`)
     return this
   }
   /**
@@ -355,8 +355,8 @@ export const I32 = new Proxy(class I32_ {
    */
   xor(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x73`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x73`)
     return this
   }
   /**
@@ -365,8 +365,8 @@ export const I32 = new Proxy(class I32_ {
    */
   shl(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x74`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x74`)
     return this
   }
   /**
@@ -375,8 +375,8 @@ export const I32 = new Proxy(class I32_ {
    */
   shr_s(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x75`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x75`)
     return this
   }
   /**
@@ -385,8 +385,8 @@ export const I32 = new Proxy(class I32_ {
    */
   shr_u(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x76`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x76`)
     return this
   }
   /**
@@ -395,8 +395,8 @@ export const I32 = new Proxy(class I32_ {
    */
   rotl(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x77`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x77`)
     return this
   }
   /**
@@ -405,8 +405,8 @@ export const I32 = new Proxy(class I32_ {
    */
   rotr(val = null) {
     if (val !== null)
-      this.accumulated.push(I32.bytes(val))
-    this.accumulated.push(byte`\x78`)
+      this.push(I32.bytes(val))
+    this.push(byte`\x78`)
     return this
   }
   /**
@@ -414,7 +414,7 @@ export const I32 = new Proxy(class I32_ {
    * Pops 1 i64 value, pushes low 32 bits as i32.
    */
   wrap_i64() {
-    this.accumulated.push(byte`\xa7`)
+    this.push(byte`\xa7`)
     return this
   }
   /**
@@ -423,7 +423,7 @@ export const I32 = new Proxy(class I32_ {
    * Traps if value is NaN, ±infinity, or out of i32 range.
    */
   trunc_f32_s() {
-    this.accumulated.push(byte`\xa8`)
+    this.push(byte`\xa8`)
     return this
   }
   /**
@@ -432,7 +432,7 @@ export const I32 = new Proxy(class I32_ {
    * Traps if value is NaN, ±infinity, or out of u32 range.
    */
   trunc_f32_u() {
-    this.accumulated.push(byte`\xa9`)
+    this.push(byte`\xa9`)
     return this
   }
   /**
@@ -441,7 +441,7 @@ export const I32 = new Proxy(class I32_ {
    * Traps if value is NaN, ±infinity, or out of i32 range.
    */
   trunc_f64_s() {
-    this.accumulated.push(byte`\xaa`)
+    this.push(byte`\xaa`)
     return this
   }
   /**
@@ -450,7 +450,7 @@ export const I32 = new Proxy(class I32_ {
    * Traps if value is NaN, ±infinity, or out of u32 range.
    */
   trunc_f64_u() {
-    this.accumulated.push(byte`\xab`)
+    this.push(byte`\xab`)
     return this
   }
   /**
@@ -458,7 +458,7 @@ export const I32 = new Proxy(class I32_ {
    * Pops 1 value, pushes raw bits as i32.
    */
   reinterpret_f32() {
-    this.accumulated.push(byte`\xbc`)
+    this.push(byte`\xbc`)
     return this
   }
   /**
@@ -466,7 +466,7 @@ export const I32 = new Proxy(class I32_ {
    * Pops 1 value, treats low 8 bits as signed and extends.
    */
   extend8_s() {
-    this.accumulated.push(byte`\xc0`)
+    this.push(byte`\xc0`)
     return this
   }
   /**
@@ -474,7 +474,7 @@ export const I32 = new Proxy(class I32_ {
    * Pops 1 value, treats low 16 bits as signed and extends.
    */
   extend16_s() {
-    this.accumulated.push(byte`\xc1`)
+    this.push(byte`\xc1`)
     return this
   }
   /**
@@ -483,7 +483,7 @@ export const I32 = new Proxy(class I32_ {
    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
    */
   trunc_sat_f32_s() {
-    this.accumulated.push(byte`\xfc\x00`)
+    this.push(byte`\xfc\x00`)
     return this
   }
   /**
@@ -492,7 +492,7 @@ export const I32 = new Proxy(class I32_ {
    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
    */
   trunc_sat_f32_u() {
-    this.accumulated.push(byte`\xfc\x01`)
+    this.push(byte`\xfc\x01`)
     return this
   }
   /**
@@ -501,7 +501,7 @@ export const I32 = new Proxy(class I32_ {
    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
    */
   trunc_sat_f64_s() {
-    this.accumulated.push(byte`\xfc\x02`)
+    this.push(byte`\xfc\x02`)
     return this
   }
   /**
@@ -510,7 +510,7 @@ export const I32 = new Proxy(class I32_ {
    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
    */
   trunc_sat_f64_u() {
-    this.accumulated.push(byte`\xfc\x03`)
+    this.push(byte`\xfc\x03`)
     return this
   }
 }, {
