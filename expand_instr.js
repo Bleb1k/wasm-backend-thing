@@ -1,9 +1,7 @@
 import { byte } from "./helpers.js";
 import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
 
-export class InstrArray extends Array {}
-
-export const I32 = new Proxy(class I32_ extends InstrArray {
+export class InstrArray extends Array {
   static bytes(val = null) {
     console.log(
       "bytes",
@@ -21,6 +19,9 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
     console.error(`Unknown value`, val)
     throw "Can't generate bytes"
   }
+}
+
+export const I32 = new Proxy(class I32_ extends InstrArray {
   /**
    * Loads an i32 value from linear memory at the address popped from the stack.
    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
@@ -130,8 +131,8 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Pops 2 values, pushes 1 if equal, else 0.
    */
   eq(val = null) {
-    if (val !== null) 
-      this.push()
+    if (val !== null)
+      this.push(I32.bytes(val))
     this.push(byte`\x46`)
     return this
   }
@@ -514,12 +515,1176 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
     return this
   }
 }, {
-	get: (a, b, c) => {
-	  if (typeof a[b] === "function") return a[b]
-		const tmp = new a()
-		return (..._) => (tmp[b](..._), tmp)
-	}  
- })
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const I64 = new Proxy(class I64_ extends InstrArray {
+  /**
+   * Loads an i64 value from linear memory at the address popped from the stack.
+   * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
+   * Requires alignment byte and offset byte right after.
+   */
+  load(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x29`, [2, ...encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads an 8-bit value from linear memory, sign-extends it to i64.
+   * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load8_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x30`, [0, ...encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads an 8-bit value from linear memory, zero-extends it to i64.
+   * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load8_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x31`, [0, ...encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a 16-bit value from linear memory, sign-extends it to i64.
+   * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load16_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x32`, [1, ...encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a 16-bit value from linear memory, zero-extends it to i64.
+   * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load16_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x33`, [1, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a 32-bit value from linear memory, sign-extends it to i64.
+   * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load32_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x34`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a 32-bit value from linear memory, zero-extends it to i64.
+   * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  load32_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x35`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores an i64 value into linear memory at address popped from stack.
+   * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x37`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores the low 8 bits of an i64 value into memory.
+   * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store8(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x3c`, [0, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores the low 16 bits of an i64 value into memory.
+   * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store16(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x3d`, [1, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores the low 32 bits of an i64 value into memory.
+   * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store32(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x3e`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Pushes a 64-bit integer constant onto the stack.
+   * The immediate value is encoded as a signed LEB128.
+   */
+  const(num = 0, type = "i64") {
+    this.push([byte`\x42`, encodeLEB128(type, num)])
+    return this
+  }
+  /**
+   * Checks if the top i64 value is zero.
+   * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
+   */
+  eqz(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x50`)
+    return this
+  }
+  /**
+   * Equality comparison for i64.
+   * Pops 2 values, pushes 1 if equal, else 0 as i32.
+   */
+  eq(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x51`)
+    return this
+  }
+  /**
+   * Inequality comparison for i64.
+   * Pops 2 values, pushes 1 if not equal, else 0 as i32.
+   */
+  ne(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x52`)
+    return this
+  }
+  /**
+   * Signed less-than comparison for i64.
+   * Pops 2 values, pushes 1 if (a < b) signed, else 0 as i32.
+   */
+  lt_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x53`)
+    return this
+  }
+  /**
+   * Unsigned less-than comparison for i64.
+   * Pops 2 values, pushes 1 if (a < b) unsigned, else 0 as i32.
+   */
+  lt_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x54`)
+    return this
+  }
+  /**
+   * Signed greater-than comparison for i64.
+   * Pops 2 values, pushes 1 if (a > b) signed, else 0 as i32.
+   */
+  gt_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x55`)
+    return this
+  }
+  /**
+   * Unsigned greater-than comparison for i64.
+   * Pops 2 values, pushes 1 if (a > b) unsigned, else 0 as i32.
+   */
+  gt_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x56`)
+    return this
+  }
+  /**
+   * Signed less-than-or-equal comparison for i64.
+   * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0 as i32.
+   */
+  le_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x57`)
+    return this
+  }
+  /**
+   * Unsigned less-than-or-equal comparison for i64.
+   * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0 as i32.
+   */
+  le_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x58`)
+    return this
+  }
+  /**
+   * Signed greater-than-or-equal comparison for i64.
+   * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0 as i32.
+   */
+  ge_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x59`)
+    return this
+  }
+  /**
+   * Unsigned greater-than-or-equal comparison for i64.
+   * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0 as i32.
+   */
+  ge_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x5a`)
+    return this
+  }
+  /**
+   * Counts leading zero bits in i64.
+   * Pops 1 value, pushes the count (0-64) as i64.
+   */
+  clz(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x79`)
+    return this
+  }
+  /**
+   * Counts trailing zero bits in i64.
+   * Pops 1 value, pushes the count (0-64) as i64.
+   */
+  ctz(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7a`)
+    return this
+  }
+  /**
+   * Counts set bits (1s) in i64.
+   * Pops 1 value, pushes the population count as i64.
+   */
+  popcnt(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7b`)
+    return this
+  }
+  /**
+   * Integer addition for i64.
+   * Pops 2 values, pushes (a + b) as i64 (wraps on overflow).
+   */
+  add(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7c`)
+    return this
+  }
+  /**
+   * Integer subtraction for i64.
+   * Pops 2 values, pushes (a - b) as i64 (wraps on overflow).
+   */
+  sub(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7d`)
+    return this
+  }
+  /**
+   * Integer multiplication for i64.
+   * Pops 2 values, pushes (a * b) as i64 (wraps on overflow).
+   */
+  mul(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7e`)
+    return this
+  }
+  /**
+   * Signed integer division for i64.
+   * Pops 2 values, pushes (a / b) as i64.
+   * Traps if b = 0 or division overflows (e.g., INT64_MIN / -1).
+   */
+  div_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x7f`)
+    return this
+  }
+  /**
+   * Unsigned integer division for i64.
+   * Pops 2 values, pushes (a / b) as i64.
+   * Traps if b = 0.
+   */
+  div_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x80`)
+    return this
+  }
+  /**
+   * Signed integer remainder for i64.
+   * Pops 2 values, pushes (a % b) as i64.
+   * Traps if b = 0 or division overflows.
+   */
+  rem_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x81`)
+    return this
+  }
+  /**
+   * Unsigned integer remainder for i64.
+   * Pops 2 values, pushes (a % b) as i64.
+   * Traps if b = 0.
+   */
+  rem_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x82`)
+    return this
+  }
+  /**
+   * Bitwise AND for i64.
+   * Pops 2 values, pushes (a & b) as i64.
+   */
+  and(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x83`)
+    return this
+  }
+  /**
+   * Bitwise OR for i64.
+   * Pops 2 values, pushes (a | b) as i64.
+   */
+  or(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x84`)
+    return this
+  }
+  /**
+   * Bitwise XOR for i64.
+   * Pops 2 values, pushes (a ^ b) as i64.
+   */
+  xor(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x85`)
+    return this
+  }
+  /**
+   * Logical left shift for i64.
+   * Pops 2 values (a, b), pushes (a << (b % 64)) as i64.
+   */
+  shl(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x86`)
+    return this
+  }
+  /**
+   * Arithmetic right shift for i64 (sign-preserving).
+   * Pops 2 values (a, b), pushes (a >> (b % 64)) as i64.
+   */
+  shr_s(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x87`)
+    return this
+  }
+  /**
+   * Logical right shift for i64 (zero-filling).
+   * Pops 2 values (a, b), pushes (a >>> (b % 64)) as i64.
+   */
+  shr_u(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x88`)
+    return this
+  }
+  /**
+   * Bitwise rotate left for i64.
+   * Pops 2 values (a, b), rotates bits left by (b % 64) positions.
+   */
+  rotl(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x89`)
+    return this
+  }
+  /**
+   * Bitwise rotate right for i64.
+   * Pops 2 values (a, b), rotates bits right by (b % 64) positions.
+   */
+  rotr(val = null) {
+    if (val !== null)
+      this.push(I64.bytes(val))
+    this.push(byte`\x8a`)
+    return this
+  }
+  /**
+   * Sign-extends i32 to i64.
+   * Pops 1 i32 value, pushes sign-extended i64.
+   */
+  extend_i32_s() {
+    this.push(byte`\xac`)
+    return this
+  }
+  /**
+   * Zero-extends i32 to i64.
+   * Pops 1 i32 value, pushes zero-extended i64.
+   */
+  extend_i32_u() {
+    this.push(byte`\xad`)
+    return this
+  }
+  /**
+   * Truncates f32 to signed i64.
+   * Pops 1 f32 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of i64 range.
+   */
+  trunc_f32_s() {
+    this.push(byte`\xae`)
+    return this
+  }
+  /**
+   * Truncates f32 to unsigned i64.
+   * Pops 1 f32 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of u64 range.
+   */
+  trunc_f32_u() {
+    this.push(byte`\xaf`)
+    return this
+  }
+  /**
+   * Truncates f64 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of i64 range.
+   */
+  trunc_f64_s() {
+    this.push(byte`\xb0`)
+    return this
+  }
+  /**
+   * Truncates f64 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of u64 range.
+   */
+  trunc_f64_u() {
+    this.push(byte`\xb1`)
+    return this
+  }
+  /**
+   * Reinterprets f64 bits as i64 (bitwise copy).
+   * Pops 1 value, pushes raw bits as i64.
+   */
+  reinterpret_f64() {
+    this.push(byte`\xbd`)
+    return this
+  }
+  /**
+   * Sign-extends 8-bit value to 64-bit i64.
+   * Pops 1 value, treats low 8 bits as signed and extends.
+   */
+  extend8_s() {
+    this.push(byte`\xc2`)
+    return this
+  }
+  /**
+   * Sign-extends 16-bit value to 64-bit i64.
+   * Pops 1 value, treats low 16 bits as signed and extends.
+   */
+  extend16_s() {
+    this.push(byte`\xc3`)
+    return this
+  }
+  /**
+   * Sign-extends 32-bit value to 64-bit i64.
+   * Pops 1 value, treats low 32 bits as signed and extends.
+   */
+  extend32_s() {
+    this.push(byte`\xc4`)
+    return this
+  }
+  /**
+   * Saturating truncation of f32 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   */
+  trunc_sat_f32_s() {
+    this.push(byte`\xfc\x04`)
+    return this
+  }
+  /**
+   * Saturating truncation of f32 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   */
+  trunc_sat_f32_u() {
+    this.push(byte`\xfc\x05`)
+    return this
+  }
+  /**
+   * Saturating truncation of f64 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   */
+  trunc_sat_f64_s() {
+    this.push(byte`\xfc\x06`)
+    return this
+  }
+  /**
+   * Saturating truncation of f64 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   */
+  trunc_sat_f64_u() {
+    this.push(byte`\xfc\x07`)
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const F32 = new Proxy(class F32_ extends InstrArray {
+  /**
+   * Loads an f32 value from linear memory at the address popped from the stack.
+   * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
+   *   equires alignment byte and offset byte right after.
+   */
+  load(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x2a`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores an f32 value into linear memory at address popped from stack.
+   * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\x38`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Pushes a 32-bit float constant onto the stack.
+   * The immediate value is encoded in IEEE 754 binary32 format.
+   */
+  const(num = 0, type = "f32") {
+    this.push([byte`\x43`, encodeIEEE754(type, num)])
+    return this
+  }
+  /**
+   * Floating-point equality comparison for f32.
+   * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  eq(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x5b`)
+    return this
+  }
+  /**
+   * Floating-point inequality comparison for f32.
+   * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 1).
+   */
+  ne(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x5c`)
+    return this
+  }
+  /**
+   * Floating-point less-than comparison for f32.
+   * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  lt(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x5d`)
+    return this
+  }
+  /**
+   * Floating-point greater-than comparison for f32.
+   * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  gt(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x5e`)
+    return this
+  }
+  /**
+   * Floating-point less-than-or-equal comparison for f32.
+   * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  le(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x5f`)
+    return this
+  }
+  /**
+   * Floating-point greater-than-or-equal comparison for f32.
+   * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  ge(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x60`)
+    return this
+  }
+  /**
+   * Absolute value for f32.
+   * Pops 1 value, pushes |a| as f32 (preserves NaN).
+   */
+  abs(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x8b`)
+    return this
+  }
+  /**
+   * Negation for f32.
+   * Pops 1 value, pushes -a as f32 (flips sign bit).
+   */
+  neg(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x8c`)
+    return this
+  }
+  /**
+   * Rounds f32 up to nearest integer.
+   * Pops 1 value, pushes ceil(a) as f32.
+   */
+  ceil(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x8d`)
+    return this
+  }
+  /**
+   * Rounds f32 down to nearest integer.
+   * Pops 1 value, pushes floor(a) as f32.
+   */
+  floor(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x8e`)
+    return this
+  }
+  /**
+   * Truncates f32 toward zero.
+   * Pops 1 value, pushes trunc(a) as f32.
+   */
+  trunc(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x8f`)
+    return this
+  }
+  /**
+   * Rounds f32 to nearest integer (ties to even).
+   * Pops 1 value, pushes rounded result as f32.
+   * Follows IEEE 754 rules (NaN → NaN).
+   */
+  nearest(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x90`)
+    return this
+  }
+  /**
+   * Computes square root of f32.
+   * Pops 1 value, pushes sqrt(a) as f32.
+   * Returns NaN for negative inputs.
+   */
+  sqrt(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x91`)
+    return this
+  }
+  /**
+   * Floating-point addition for f32.
+   * Pops 2 values, pushes (a + b) as f32.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  add(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x92`)
+    return this
+  }
+  /**
+   * Floating-point subtraction for f32.
+   * Pops 2 values, pushes (a - b) as f32.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  sub(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x93`)
+    return this
+  }
+  /**
+   * Floating-point multiplication for f32.
+   * Pops 2 values, pushes (a * b) as f32.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  mul(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x94`)
+    return this
+  }
+  /**
+   * Floating-point division for f32.
+   * Pops 2 values, pushes (a / b) as f32.
+   * Follows IEEE 754 rules (NaN/±infinity handling).
+   */
+  div(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x95`)
+    return this
+  }
+  /**
+   * Returns minimum of two f32 values.
+   * Pops 2 values, pushes min(a, b) as f32.
+   * Handles NaN and -0/+0 correctly per IEEE 754.
+   */
+  min(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x96`)
+    return this
+  }
+  /**
+   * Returns maximum of two f32 values.
+   * Pops 2 values, pushes max(a, b) as f32.
+   * Handles NaN and -0/+0 correctly per IEEE 754.
+   */
+  max(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x97`)
+    return this
+  }
+  /**
+   * Copies sign bit from b to a for f32.
+   * Pops 2 values, pushes (|a| with b's sign) as f32.
+   */
+  copysign(val = null) {
+    if (val !== null)
+      this.push(F32.bytes(val))
+    this.push(byte`\x98`)
+    return this
+  }
+  /**
+   * Converts signed i32 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision for large integers.
+   */
+  convert_i32_s() {
+    this.push(byte`\xb2`)
+    return this
+  }
+  /**
+   * Converts unsigned i32 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision for large integers.
+   */
+  convert_i32_u() {
+    this.push(byte`\xb3`)
+    return this
+  }
+  /**
+   * Converts signed i64 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Likely loses precision (f32 has 23-bit mantissa).
+   */
+  convert_i64_s() {
+    this.push(byte`\xb4`)
+    return this
+  }
+  /**
+   * Converts unsigned i64 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Likely loses precision (f32 has 23-bit mantissa).
+   */
+  convert_i64_u() {
+    this.push(byte`\xb5`)
+    return this
+  }
+  /**
+   * Demotes f64 to f32 (loses precision).
+   * Pops 1 value, pushes f32 equivalent.
+   * Rounds to nearest representable f32 value.
+   */
+  demote_f64() {
+    this.push(byte`\xb6`)
+    return this
+  }
+  /**
+   * Reinterprets i32 bits as f32 (bitwise copy).
+   * Pops 1 value, pushes raw bits as f32.
+   */
+  reinterpret_i32() {
+    this.push(byte`\xbe`)
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const F64 = new Proxy(class F64_ extends InstrArray {
+  /**
+   * Loads an f64 value from linear memory at the address popped from the stack.
+   * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
+   * Requires alignment byte and offset byte right after.
+   */
+  load(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(F64.bytes(ptr))
+    this.push([byte`\x2b`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores an f64 value into linear memory at address popped from stack.
+   * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
+   * Requires alignment byte and offset byte right after.
+   */
+  store(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(F64.bytes(ptr))
+    this.push([byte`\x39`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Pushes a 64-bit float constant onto the stack.
+   * The immediate value is encoded in IEEE 754 binary64 format.
+   */
+  const(num = 0, type = "f64") {
+    this.push([byte`\x44`, encodeIEEE754(type, num)])
+    return this
+  }
+  /**
+   * Floating-point equality comparison for f64.
+   * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  eq(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x61`)
+    return this
+  }
+  /**
+   * Floating-point inequality comparison for f64.
+   * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 1).
+   */
+  ne(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x62`)
+    return this
+  }
+  /**
+   * Floating-point less-than comparison for f64.
+   * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  lt(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x63`)
+    return this
+  }
+  /**
+   * Floating-point greater-than comparison for f64.
+   * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  gt(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x64`)
+    return this
+  }
+  /**
+   * Floating-point less-than-or-equal comparison for f64.
+   * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  le(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x65`)
+    return this
+  }
+  /**
+   * Floating-point greater-than-or-equal comparison for f64.
+   * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
+   * Follows IEEE 754 rules (NaN returns 0).
+   */
+  ge(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x66`)
+    return this
+  }
+  /**
+   * Absolute value for f64.
+   * Pops 1 value, pushes |a| as f64 (preserves NaN).
+   */
+  abs(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x99`)
+    return this
+  }
+  /**
+   * Negation for f64.
+   * Pops 1 value, pushes -a as f64 (flips sign bit).
+   */
+  neg(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9a`)
+    return this
+  }
+  /**
+   * Rounds f64 up to nearest integer.
+   * Pops 1 value, pushes ceil(a) as f64.
+   */
+  ceil(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9b`)
+    return this
+  }
+  /**
+   * Rounds f64 down to nearest integer.
+   * Pops 1 value, pushes floor(a) as f64.
+   */
+  floor(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9c`)
+    return this
+  }
+  /**
+   * Truncates f64 toward zero.
+   * Pops 1 value, pushes trunc(a) as f64.
+   */
+  trunc(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9d`)
+    return this
+  }
+  /**
+   * Rounds f64 to nearest integer (ties to even).
+   * Pops 1 value, pushes rounded result as f64.
+   * Follows IEEE 754 rules (NaN → NaN).
+   */
+  nearest(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9e`)
+    return this
+  }
+  /**
+   * Computes square root of f64.
+   * Pops 1 value, pushes sqrt(a) as f64.
+   * Returns NaN for negative inputs.
+   */
+  sqrt(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\x9f`)
+    return this
+  }
+  /**
+   * Floating-point addition for f64.
+   * Pops 2 values, pushes (a + b) as f64.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  add(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa0`)
+    return this
+  }
+  /**
+   * Floating-point subtraction for f64.
+   * Pops 2 values, pushes (a - b) as f64.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  sub(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa1`)
+    return this
+  }
+  /**
+   * Floating-point multiplication for f64.
+   * Pops 2 values, pushes (a * b) as f64.
+   * Follows IEEE 754 rules (NaN propagation).
+   */
+  mul(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa2`)
+    return this
+  }
+  /**
+   * Floating-point division for f64.
+   * Pops 2 values, pushes (a / b) as f64.
+   * Follows IEEE 754 rules (NaN/±infinity handling).
+   */
+  div(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa3`)
+    return this
+  }
+  /**
+   * Returns minimum of two f64 values.
+   * Pops 2 values, pushes min(a, b) as f64.
+   * Handles NaN and -0/+0 correctly per IEEE 754.
+   */
+  min(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa4`)
+    return this
+  }
+  /**
+   * Returns maximum of two f64 values.
+   * Pops 2 values, pushes max(a, b) as f64.
+   * Handles NaN and -0/+0 correctly per IEEE 754.
+   */
+  max(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa5`)
+    return this
+  }
+  /**
+   * Copies sign bit from b to a for f64.
+   * Pops 2 values, pushes (|a| with b's sign) as f64.
+   */
+  copysign(val = null) {
+    if (val !== null)
+      this.push(F64.bytes(val))
+    this.push(byte`\xa6`)
+    return this
+  }
+  /**
+   * Converts signed i32 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Exact conversion (no precision loss).
+   */
+  convert_i32_s() {
+    this.push(byte`\xb7`)
+    return this
+  }
+  /**
+   * Converts unsigned i32 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Exact conversion (no precision loss).
+   */
+  convert_i32_u() {
+    this.push(byte`\xb8`)
+    return this
+  }
+  /**
+   * Converts signed i64 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision (f64 has 52-bit mantissa).
+   */
+  convert_i64_s() {
+    this.push(byte`\xb9`)
+    return this
+  }
+  /**
+   * Converts unsigned i64 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision (f64 has 52-bit mantissa).
+   */
+  convert_i64_u() {
+    this.push(byte`\xba`)
+    return this
+  }
+  /**
+   * Promotes f32 to f64 (exact conversion).
+   * Pops 1 value, pushes f64 equivalent.
+   */
+  promote_f32() {
+    this.push(byte`\xbb`)
+    return this
+  }
+  /**
+   * Reinterprets i64 bits as f64 (bitwise copy).
+   * Pops 1 value, pushes raw bits as f64.
+   */
+  reinterpret_i64() {
+    this.push(byte`\xbf`)
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
 
 // let W = {}
 // /**
@@ -738,641 +1903,6 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
 //    * Passive data segments can no longer be used after this operation.
 //    */
 //   data_drop: (index) => [byte`\xfc\x09`, index],
-//   I64: {
-//     /**
-//      * Loads an i64 value from linear memory at the address popped from the stack.
-//      * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load: (offset = 0) => [byte`\x29`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads an 8-bit value from linear memory, sign-extends it to i64.
-//      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load8_s: (offset = 0) => [byte`\x30`, 0, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads an 8-bit value from linear memory, zero-extends it to i64.
-//      * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load8_u: (offset = 0) => [byte`\x31`, 0, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a 16-bit value from linear memory, sign-extends it to i64.
-//      * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load16_s: (offset = 0) => [byte`\x32`, 1, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a 16-bit value from linear memory, zero-extends it to i64.
-//      * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load16_u: (offset = 0) => [byte`\x33`, 1, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a 32-bit value from linear memory, sign-extends it to i64.
-//      * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load32_s: (offset = 0) => [byte`\x34`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a 32-bit value from linear memory, zero-extends it to i64.
-//      * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load32_u: (offset = 0) => [byte`\x35`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores an i64 value into linear memory at address popped from stack.
-//      * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store: (offset = 0) => [byte`\x37`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores the low 8 bits of an i64 value into memory.
-//      * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store8: (offset = 0) => [byte`\x3c`, 0, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores the low 16 bits of an i64 value into memory.
-//      * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store16: (offset = 0) => [byte`\x3d`, 1, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores the low 32 bits of an i64 value into memory.
-//      * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store32: (offset = 0) => [byte`\x3e`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Pushes a 64-bit integer constant onto the stack.
-//      * The immediate value is encoded as a signed LEB128.
-//      */
-//     const: (num = 0, type = "i64") => [byte`\x42`, encodeLEB128(type, num)],
-//     /**
-//      * Checks if the top i64 value is zero.
-//      * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
-//      */
-//     eqz: byte`\x50`,
-//     /**
-//      * Equality comparison for i64.
-//      * Pops 2 values, pushes 1 if equal, else 0 as i32.
-//      */
-//     eq: byte`\x51`,
-//     /**
-//      * Inequality comparison for i64.
-//      * Pops 2 values, pushes 1 if not equal, else 0 as i32.
-//      */
-//     ne: byte`\x52`,
-//     /**
-//      * Signed less-than comparison for i64.
-//      * Pops 2 values, pushes 1 if (a < b) signed, else 0 as i32.
-//      */
-//     lt_s: byte`\x53`,
-//     /**
-//      * Unsigned less-than comparison for i64.
-//      * Pops 2 values, pushes 1 if (a < b) unsigned, else 0 as i32.
-//      */
-//     lt_u: byte`\x54`,
-//     /**
-//      * Signed greater-than comparison for i64.
-//      * Pops 2 values, pushes 1 if (a > b) signed, else 0 as i32.
-//      */
-//     gt_s: byte`\x55`,
-//     /**
-//      * Unsigned greater-than comparison for i64.
-//      * Pops 2 values, pushes 1 if (a > b) unsigned, else 0 as i32.
-//      */
-//     gt_u: byte`\x56`,
-//     /**
-//      * Signed less-than-or-equal comparison for i64.
-//      * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0 as i32.
-//      */
-//     le_s: byte`\x57`,
-//     /**
-//      * Unsigned less-than-or-equal comparison for i64.
-//      * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0 as i32.
-//      */
-//     le_u: byte`\x58`,
-//     /**
-//      * Signed greater-than-or-equal comparison for i64.
-//      * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0 as i32.
-//      */
-//     ge_s: byte`\x59`,
-//     /**
-//      * Unsigned greater-than-or-equal comparison for i64.
-//      * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0 as i32.
-//      */
-//     ge_u: byte`\x5a`,
-//     /**
-//      * Counts leading zero bits in i64.
-//      * Pops 1 value, pushes the count (0-64) as i64.
-//      */
-//     clz: byte`\x79`,
-//     /**
-//      * Counts trailing zero bits in i64.
-//      * Pops 1 value, pushes the count (0-64) as i64.
-//      */
-//     ctz: byte`\x7a`,
-//     /**
-//      * Counts set bits (1s) in i64.
-//      * Pops 1 value, pushes the population count as i64.
-//      */
-//     popcnt: byte`\x7b`,
-//     /**
-//      * Integer addition for i64.
-//      * Pops 2 values, pushes (a + b) as i64 (wraps on overflow).
-//      */
-//     add: byte`\x7c`,
-//     /**
-//      * Integer subtraction for i64.
-//      * Pops 2 values, pushes (a - b) as i64 (wraps on overflow).
-//      */
-//     sub: byte`\x7d`,
-//     /**
-//      * Integer multiplication for i64.
-//      * Pops 2 values, pushes (a * b) as i64 (wraps on overflow).
-//      */
-//     mul: byte`\x7e`,
-//     /**
-//      * Signed integer division for i64.
-//      * Pops 2 values, pushes (a / b) as i64.
-//      * Traps if b = 0 or division overflows (e.g., INT64_MIN / -1).
-//      */
-//     div_s: byte`\x7f`,
-//     /**
-//      * Unsigned integer division for i64.
-//      * Pops 2 values, pushes (a / b) as i64.
-//      * Traps if b = 0.
-//      */
-//     div_u: byte`\x80`,
-//     /**
-//      * Signed integer remainder for i64.
-//      * Pops 2 values, pushes (a % b) as i64.
-//      * Traps if b = 0 or division overflows.
-//      */
-//     rem_s: byte`\x81`,
-//     /**
-//      * Unsigned integer remainder for i64.
-//      * Pops 2 values, pushes (a % b) as i64.
-//      * Traps if b = 0.
-//      */
-//     rem_u: byte`\x82`,
-//     /**
-//      * Bitwise AND for i64.
-//      * Pops 2 values, pushes (a & b) as i64.
-//      */
-//     and: byte`\x83`,
-//     /**
-//      * Bitwise OR for i64.
-//      * Pops 2 values, pushes (a | b) as i64.
-//      */
-//     or: byte`\x84`,
-//     /**
-//      * Bitwise XOR for i64.
-//      * Pops 2 values, pushes (a ^ b) as i64.
-//      */
-//     xor: byte`\x85`,
-//     /**
-//      * Logical left shift for i64.
-//      * Pops 2 values (a, b), pushes (a << (b % 64)) as i64.
-//      */
-//     shl: byte`\x86`,
-//     /**
-//      * Arithmetic right shift for i64 (sign-preserving).
-//      * Pops 2 values (a, b), pushes (a >> (b % 64)) as i64.
-//      */
-//     shr_s: byte`\x87`,
-//     /**
-//      * Logical right shift for i64 (zero-filling).
-//      * Pops 2 values (a, b), pushes (a >>> (b % 64)) as i64.
-//      */
-//     shr_u: byte`\x88`,
-//     /**
-//      * Bitwise rotate left for i64.
-//      * Pops 2 values (a, b), rotates bits left by (b % 64) positions.
-//      */
-//     rotl: byte`\x89`,
-//     /**
-//      * Bitwise rotate right for i64.
-//      * Pops 2 values (a, b), rotates bits right by (b % 64) positions.
-//      */
-//     rotr: byte`\x8a`,
-//     /**
-//      * Sign-extends i32 to i64.
-//      * Pops 1 i32 value, pushes sign-extended i64.
-//      */
-//     extend_i32_s: byte`\xac`,
-//     /**
-//      * Zero-extends i32 to i64.
-//      * Pops 1 i32 value, pushes zero-extended i64.
-//      */
-//     extend_i32_u: byte`\xad`,
-//     /**
-//      * Truncates f32 to signed i64.
-//      * Pops 1 f32 value, pushes truncated integer as i64.
-//      * Traps if value is NaN, ±infinity, or out of i64 range.
-//      */
-//     trunc_f32_s: byte`\xae`,
-//     /**
-//      * Truncates f32 to unsigned i64.
-//      * Pops 1 f32 value, pushes truncated integer as i64.
-//      * Traps if value is NaN, ±infinity, or out of u64 range.
-//      */
-//     trunc_f32_u: byte`\xaf`,
-//     /**
-//      * Truncates f64 to signed i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Traps if value is NaN, ±infinity, or out of i64 range.
-//      */
-//     trunc_f64_s: byte`\xb0`,
-//     /**
-//      * Truncates f64 to unsigned i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Traps if value is NaN, ±infinity, or out of u64 range.
-//      */
-//     trunc_f64_u: byte`\xb1`,
-//     /**
-//      * Reinterprets f64 bits as i64 (bitwise copy).
-//      * Pops 1 value, pushes raw bits as i64.
-//      */
-//     reinterpret_f64: byte`\xbd`,
-//     /**
-//      * Sign-extends 8-bit value to 64-bit i64.
-//      * Pops 1 value, treats low 8 bits as signed and extends.
-//      */
-//     extend8_s: byte`\xc2`,
-//     /**
-//      * Sign-extends 16-bit value to 64-bit i64.
-//      * Pops 1 value, treats low 16 bits as signed and extends.
-//      */
-//     extend16_s: byte`\xc3`,
-//     /**
-//      * Sign-extends 32-bit value to 64-bit i64.
-//      * Pops 1 value, treats low 32 bits as signed and extends.
-//      */
-//     extend32_s: byte`\xc4`,
-//     /**
-//      * Saturating truncation of f32 to signed i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
-//      */
-//     trunc_sat_f32_s: byte`\xfc\x04`,
-//     /**
-//      * Saturating truncation of f32 to unsigned i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
-//      */
-//     trunc_sat_f32_u: byte`\xfc\x05`,
-//     /**
-//      * Saturating truncation of f64 to signed i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
-//      */
-//     trunc_sat_f64_s: byte`\xfc\x06`,
-//     /**
-//      * Saturating truncation of f64 to unsigned i64.
-//      * Pops 1 value, pushes truncated integer as i64.
-//      * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
-//      */
-//     trunc_sat_f64_u: byte`\xfc\x07`,
-//   },
-//   F32: {
-//     /**
-//      * Loads an f32 value from linear memory at the address popped from the stack.
-//      * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
-//      *   equires alignment byte and offset byte right after.
-//      */
-//     load: (offset = 0) => [byte`\x2a`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores an f32 value into linear memory at address popped from stack.
-//      * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store: (offset = 0) => [byte`\x38`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Pushes a 32-bit float constant onto the stack.
-//      * The immediate value is encoded in IEEE 754 binary32 format.
-//      */
-//     const: (num = 0, type = "f32") => [byte`\x43`, encodeIEEE754(type, num)],
-//     /**
-//      * Floating-point equality comparison for f32.
-//      * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     eq: byte`\x5b`,
-//     /**
-//      * Floating-point inequality comparison for f32.
-//      * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 1).
-//      */
-//     ne: byte`\x5c`,
-//     /**
-//      * Floating-point less-than comparison for f32.
-//      * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     lt: byte`\x5d`,
-//     /**
-//      * Floating-point greater-than comparison for f32.
-//      * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     gt: byte`\x5e`,
-//     /**
-//      * Floating-point less-than-or-equal comparison for f32.
-//      * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     le: byte`\x5f`,
-//     /**
-//      * Floating-point greater-than-or-equal comparison for f32.
-//      * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     ge: byte`\x60`,
-//     /**
-//      * Absolute value for f32.
-//      * Pops 1 value, pushes |a| as f32 (preserves NaN).
-//      */
-//     abs: byte`\x8b`,
-//     /**
-//      * Negation for f32.
-//      * Pops 1 value, pushes -a as f32 (flips sign bit).
-//      */
-//     neg: byte`\x8c`,
-//     /**
-//      * Rounds f32 up to nearest integer.
-//      * Pops 1 value, pushes ceil(a) as f32.
-//      */
-//     ceil: byte`\x8d`,
-//     /**
-//      * Rounds f32 down to nearest integer.
-//      * Pops 1 value, pushes floor(a) as f32.
-//      */
-//     floor: byte`\x8e`,
-//     /**
-//      * Truncates f32 toward zero.
-//      * Pops 1 value, pushes trunc(a) as f32.
-//      */
-//     trunc: byte`\x8f`,
-//     /**
-//      * Rounds f32 to nearest integer (ties to even).
-//      * Pops 1 value, pushes rounded result as f32.
-//      * Follows IEEE 754 rules (NaN → NaN).
-//      */
-//     nearest: byte`\x90`,
-//     /**
-//      * Computes square root of f32.
-//      * Pops 1 value, pushes sqrt(a) as f32.
-//      * Returns NaN for negative inputs.
-//      */
-//     sqrt: byte`\x91`,
-//     /**
-//      * Floating-point addition for f32.
-//      * Pops 2 values, pushes (a + b) as f32.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     add: byte`\x92`,
-//     /**
-//      * Floating-point subtraction for f32.
-//      * Pops 2 values, pushes (a - b) as f32.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     sub: byte`\x93`,
-//     /**
-//      * Floating-point multiplication for f32.
-//      * Pops 2 values, pushes (a * b) as f32.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     mul: byte`\x94`,
-//     /**
-//      * Floating-point division for f32.
-//      * Pops 2 values, pushes (a / b) as f32.
-//      * Follows IEEE 754 rules (NaN/±infinity handling).
-//      */
-//     div: byte`\x95`,
-//     /**
-//      * Returns minimum of two f32 values.
-//      * Pops 2 values, pushes min(a, b) as f32.
-//      * Handles NaN and -0/+0 correctly per IEEE 754.
-//      */
-//     min: byte`\x96`,
-//     /**
-//      * Returns maximum of two f32 values.
-//      * Pops 2 values, pushes max(a, b) as f32.
-//      * Handles NaN and -0/+0 correctly per IEEE 754.
-//      */
-//     max: byte`\x97`,
-//     /**
-//      * Copies sign bit from b to a for f32.
-//      * Pops 2 values, pushes (|a| with b's sign) as f32.
-//      */
-//     copysign: byte`\x98`,
-//     /**
-//      * Converts signed i32 to f32.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * May lose precision for large integers.
-//      */
-//     convert_i32_s: byte`\xb2`,
-//     /**
-//      * Converts unsigned i32 to f32.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * May lose precision for large integers.
-//      */
-//     convert_i32_u: byte`\xb3`,
-//     /**
-//      * Converts signed i64 to f32.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * Likely loses precision (f32 has 23-bit mantissa).
-//      */
-//     convert_i64_s: byte`\xb4`,
-//     /**
-//      * Converts unsigned i64 to f32.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * Likely loses precision (f32 has 23-bit mantissa).
-//      */
-//     convert_i64_u: byte`\xb5`,
-//     /**
-//      * Demotes f64 to f32 (loses precision).
-//      * Pops 1 value, pushes f32 equivalent.
-//      * Rounds to nearest representable f32 value.
-//      */
-//     demote_f64: byte`\xb6`,
-//     /**
-//      * Reinterprets i32 bits as f32 (bitwise copy).
-//      * Pops 1 value, pushes raw bits as f32.
-//      */
-//     reinterpret_i32: byte`\xbe`,
-//   },
-//   F64: {
-//     /**
-//      * Loads an f64 value from linear memory at the address popped from the stack.
-//      * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     load: (offset = 0) => [byte`\x2b`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores an f64 value into linear memory at address popped from stack.
-//      * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
-//      * Requires alignment byte and offset byte right after.
-//      */
-//     store: (offset = 0) => [byte`\x39`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Pushes a 64-bit float constant onto the stack.
-//      * The immediate value is encoded in IEEE 754 binary64 format.
-//      */
-//     const: (num = 0, type = "f64") => [byte`\x44`, encodeIEEE754(type, num)],
-//     /**
-//      * Floating-point equality comparison for f64.
-//      * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     eq: byte`\x61`,
-//     /**
-//      * Floating-point inequality comparison for f64.
-//      * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 1).
-//      */
-//     ne: byte`\x62`,
-//     /**
-//      * Floating-point less-than comparison for f64.
-//      * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     lt: byte`\x63`,
-//     /**
-//      * Floating-point greater-than comparison for f64.
-//      * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     gt: byte`\x64`,
-//     /**
-//      * Floating-point less-than-or-equal comparison for f64.
-//      * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     le: byte`\x65`,
-//     /**
-//      * Floating-point greater-than-or-equal comparison for f64.
-//      * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
-//      * Follows IEEE 754 rules (NaN returns 0).
-//      */
-//     ge: byte`\x66`,
-//     /**
-//      * Absolute value for f64.
-//      * Pops 1 value, pushes |a| as f64 (preserves NaN).
-//      */
-//     abs: byte`\x99`,
-//     /**
-//      * Negation for f64.
-//      * Pops 1 value, pushes -a as f64 (flips sign bit).
-//      */
-//     neg: byte`\x9a`,
-//     /**
-//      * Rounds f64 up to nearest integer.
-//      * Pops 1 value, pushes ceil(a) as f64.
-//      */
-//     ceil: byte`\x9b`,
-//     /**
-//      * Rounds f64 down to nearest integer.
-//      * Pops 1 value, pushes floor(a) as f64.
-//      */
-//     floor: byte`\x9c`,
-//     /**
-//      * Truncates f64 toward zero.
-//      * Pops 1 value, pushes trunc(a) as f64.
-//      */
-//     trunc: byte`\x9d`,
-//     /**
-//      * Rounds f64 to nearest integer (ties to even).
-//      * Pops 1 value, pushes rounded result as f64.
-//      * Follows IEEE 754 rules (NaN → NaN).
-//      */
-//     nearest: byte`\x9e`,
-//     /**
-//      * Computes square root of f64.
-//      * Pops 1 value, pushes sqrt(a) as f64.
-//      * Returns NaN for negative inputs.
-//      */
-//     sqrt: byte`\x9f`,
-//     /**
-//      * Floating-point addition for f64.
-//      * Pops 2 values, pushes (a + b) as f64.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     add: byte`\xa0`,
-//     /**
-//      * Floating-point subtraction for f64.
-//      * Pops 2 values, pushes (a - b) as f64.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     sub: byte`\xa1`,
-//     /**
-//      * Floating-point multiplication for f64.
-//      * Pops 2 values, pushes (a * b) as f64.
-//      * Follows IEEE 754 rules (NaN propagation).
-//      */
-//     mul: byte`\xa2`,
-//     /**
-//      * Floating-point division for f64.
-//      * Pops 2 values, pushes (a / b) as f64.
-//      * Follows IEEE 754 rules (NaN/±infinity handling).
-//      */
-//     div: byte`\xa3`,
-//     /**
-//      * Returns minimum of two f64 values.
-//      * Pops 2 values, pushes min(a, b) as f64.
-//      * Handles NaN and -0/+0 correctly per IEEE 754.
-//      */
-//     min: byte`\xa4`,
-//     /**
-//      * Returns maximum of two f64 values.
-//      * Pops 2 values, pushes max(a, b) as f64.
-//      * Handles NaN and -0/+0 correctly per IEEE 754.
-//      */
-//     max: byte`\xa5`,
-//     /**
-//      * Copies sign bit from b to a for f64.
-//      * Pops 2 values, pushes (|a| with b's sign) as f64.
-//      */
-//     copysign: byte`\xa6`,
-//     /**
-//      * Converts signed i32 to f64.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * Exact conversion (no precision loss).
-//      */
-//     convert_i32_s: byte`\xb7`,
-//     /**
-//      * Converts unsigned i32 to f64.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * Exact conversion (no precision loss).
-//      */
-//     convert_i32_u: byte`\xb8`,
-//     /**
-//      * Converts signed i64 to f64.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * May lose precision (f64 has 52-bit mantissa).
-//      */
-//     convert_i64_s: byte`\xb9`,
-//     /**
-//      * Converts unsigned i64 to f64.
-//      * Pops 1 value, pushes floating-point equivalent.
-//      * May lose precision (f64 has 52-bit mantissa).
-//      */
-//     convert_i64_u: byte`\xba`,
-//     /**
-//      * Promotes f32 to f64 (exact conversion).
-//      * Pops 1 value, pushes f64 equivalent.
-//      */
-//     promote_f32: byte`\xbb`,
-//     /**
-//      * Reinterprets i64 bits as f64 (bitwise copy).
-//      * Pops 1 value, pushes raw bits as f64.
-//      */
-//     reinterpret_i64: byte`\xbf`,
-//   },
 //   ref: {
 //     /**
 //      * Pushes a null reference onto the stack.
