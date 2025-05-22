@@ -120,6 +120,13 @@ app.newFunction([[], [Type.i32]], [], [
   I32.load16_s(),
 ], { export: "testt" })
 
+app.newFunction([[], [Type.i32]], [], [
+  I32.const(1).store(0),
+  I32.const(-1).store(4),
+  I32.load8_u(0),
+  I32.load8_u(4).add(),
+], { export: "u8bits" })
+
 // TODO: test V128.bitselect
 
 const { instance, module } = await app.compile();
@@ -142,7 +149,7 @@ instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false")
 //   return [x, x, y];
 // })
 
-console.log(instance.exports.testt())
+console.log(instance.exports.u8bits().toString(2))
 
 /**
  * There, app.function changes global context to the context of current app,

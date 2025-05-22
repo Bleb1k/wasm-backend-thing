@@ -1,5 +1,5 @@
 import { byte } from "./helpers.js";
-import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
+import { encode_v128, encodeIEEE754, encodeLEB128 } from "./lib.js";
 
 export class InstrArray extends Array {
   static bytes(val = null) {
@@ -24,7 +24,7 @@ export class InstrArray extends Array {
   }
 }
 
-export const I32 = new Proxy(class I32_ extends InstrArray {
+/** @type {I32_} */class I32_ extends InstrArray {
   /**
    * Loads an i32 value from linear memory at the address popped from the stack.
    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
@@ -514,6 +514,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
   /**
    * Sign-extends i32 to i64.
    * Pops 1 i32 value, pushes sign-extended i64.
+   * @returns {I64_}
    */
   to_i64_extend() {
     this.push(byte`\xac`)
@@ -522,6 +523,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
   /**
    * Zero-extends i32 to i64.
    * Pops 1 i32 value, pushes zero-extended i64.
+   * @returns {I64_}
    */
   to_u64_extend() {
     this.push(byte`\xad`)
@@ -531,6 +533,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Converts signed i32 to f32.
    * Pops 1 value, pushes floating-point equivalent.
    * May lose precision for large integers.
+   * @returns {F32_}
    */
   to_f32_convert_s() {
     this.push(byte`\xb2`)
@@ -540,6 +543,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Converts unsigned i32 to f32.
    * Pops 1 value, pushes floating-point equivalent.
    * May lose precision for large integers.
+   * @returns {F32_}
    */
   to_f32_convert_u() {
     this.push(byte`\xb3`)
@@ -555,8 +559,9 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
   }
   /**
    * Converts signed i32 to f64.
-   * Pops 1 value, pushes floating-point equivalent.
-   * Exact conversion (no precision loss).
+   * Pops 1 value, p_ushes floating-point equivalent.
+   * Exact conve_rsion (no precision loss).
+   * @returns {I16x8_64_}
    */
   to_f64_convert_s() {
     this.push(byte`\xb7`)
@@ -564,14 +569,17 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
   }
   /**
    * Converts unsigned i32 to f64.
-   * Pops 1 value, pushes floating-point equivalent.
-   * Exact conversion (no precision loss).
+   * Pops 1 value, p_ushes floating-point equivalent.
+   * Exact conve_rsion (no precision loss).
+   * @returns {I16x8_64_}
    */
   to_f64_convert_u() {
     this.push(byte`\xb8`)
     return F64.from(this)
   }
-}, {
+}
+/** @type {I32_} */
+export const I32 = new Proxy(I32_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -579,7 +587,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
   }
 })
 
-export const I64 = new Proxy(class I64_ extends InstrArray {
+class I64_ extends InstrArray {
   /**
    * Loads an i64 value from linear memory at the address popped from the stack.
    * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
@@ -1118,6 +1126,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
   /**
    * Wraps i64 to i32 (discards high 32 bits).
    * Pops 1 i64 value, pushes low 32 bits as i32.
+   * @returns {I32_}
    */
   to_i32_wrap() {
     this.push(byte`\xa7`)
@@ -1127,6 +1136,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Converts signed i64 to f32.
    * Pops 1 value, pushes floating-point equivalent.
    * Likely loses precision (f32 has 23-bit mantissa).
+   * @returns {F32_}
    */
   to_f32_convert_s() {
     this.push(byte`\xb4`)
@@ -1136,6 +1146,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Converts unsigned i64 to f32.
    * Pops 1 value, pushes floating-point equivalent.
    * Likely loses precision (f32 has 23-bit mantissa).
+   * @returns {F32_}
    */
   to_f32_convert_u() {
     this.push(byte`\xb5`)
@@ -1145,6 +1156,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Converts signed i64 to f64.
    * Pops 1 value, pushes floating-point equivalent.
    * May lose precision (f64 has 52-bit mantissa).
+   * @returns {F64_}
    */
   to_f64_convert_s() {
     this.push(byte`\xb9`)
@@ -1160,8 +1172,9 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
   }
   /**
    * Converts unsigned i64 to f64.
-   * Pops 1 value, pushes floating-point equivalent.
-   * May lose precision (f64 has 52-bit mantissa).
+   * Pops 1 value, p_ushes floating-point equivalent.
+   * May lose pr_ecision (f64 has 52-bit mantissa).
+   * @returns {I16x8_64_}
    */
   to_f64_convert_u() {
     this.push(byte`\xba`)
@@ -1175,15 +1188,17 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
     this.push(byte`\xbf`)
     return F64.from(this)
   }
-}, {
+}
+/** @type {I64_} */
+export const I64 = new Proxy(I64_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
-    return (..._) => (tmp[b](..._), tmp)
+    return (..._) => /** @type {I64_} */(tmp[b](..._), tmp)
   }
 })
 
-export const F32 = new Proxy(class F32_ extends InstrArray {
+class F32_ extends InstrArray {
   /**
    * Loads an f32 value from linear memory at the address popped from the stack.
    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
@@ -1471,6 +1486,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Truncates f32 to signed i32.
    * Pops 1 f32 value, pushes truncated integer as i32.
    * Traps if value is NaN, ±infinity, or out of i32 range.
+   * @returns {I32_}
    */
   to_i32_trunc() {
     this.push(byte`\xa8`)
@@ -1480,6 +1496,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Truncates f32 to unsigned i32.
    * Pops 1 f32 value, pushes truncated integer as i32.
    * Traps if value is NaN, ±infinity, or out of u32 range.
+   * @returns {I32_}
    */
   to_u32_trunc() {
     this.push(byte`\xa9`)
@@ -1497,6 +1514,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Saturating truncation of f32 to signed i32.
    * Pops 1 value, pushes truncated integer as i32.
    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   * @returns {I32_}
    */
   to_i32_trunc_sat() {
     this.push(byte`\xfc\x00`)
@@ -1506,6 +1524,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Saturating truncation of f32 to unsigned i32.
    * Pops 1 value, pushes truncated integer as i32.
    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   * @returns {I32_}
    */
   to_u32_trunc_sat() {
     this.push(byte`\xfc\x01`)
@@ -1515,6 +1534,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Truncates f32 to signed i64.
    * Pops 1 f32 value, pushes truncated integer as i64.
    * Traps if value is NaN, ±infinity, or out of i64 range.
+   * @returns {I64_}
    */
   to_i64_trunc() {
     this.push(byte`\xae`)
@@ -1524,6 +1544,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Truncates f32 to unsigned i64.
    * Pops 1 f32 value, pushes truncated integer as i64.
    * Traps if value is NaN, ±infinity, or out of u64 range.
+   * @returns {I64_}
    */
   to_u64_trunc() {
     this.push(byte`\xaf`)
@@ -1533,6 +1554,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Saturating truncation of f32 to signed i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   * @returns {I64_}
    */
   to_i64_trunc_sat() {
     this.push(byte`\xfc\x04`)
@@ -1542,20 +1564,24 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Saturating truncation of f32 to unsigned i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   * @returns {I64_}
    */
   to_u64_trunc_sat() {
     this.push(byte`\xfc\x05`)
     return I64.from(this)
   }
   /**
-   * Promotes f32 to f64 (exact conversion).
-   * Pops 1 value, pushes f64 equivalent.
+   * Promotes f32 to_ f64 (exact conversion).
+   * Pops 1 valu_e, pushes f64 equivalent.
+   * @returns {I16x8_64_}
    */
   to_f64() {
     this.push(byte`\xbb`)
     return F64.from(this)
   }
-}, {
+}
+/** @type {F32_} */
+export const F32 = new Proxy(F32_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -1563,7 +1589,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
   }
 })
 
-export const F64 = new Proxy(class F64_ extends InstrArray {
+class F64_ extends InstrArray {
   /**
    * Loads an f64 value from linear memory at the address popped from the stack.
    * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
@@ -1850,6 +1876,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Truncates f64 to signed i32.
    * Pops 1 f64 value, pushes truncated integer as i32.
    * Traps if value is NaN, ±infinity, or out of i32 range.
+   * @returns {I32_}
    */
   to_i32_trunc() {
     this.push(byte`\xaa`)
@@ -1859,6 +1886,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Truncates f64 to unsigned i32.
    * Pops 1 f64 value, pushes truncated integer as i32.
    * Traps if value is NaN, ±infinity, or out of u32 range.
+   * @returns {I32_}
    */
   to_u32_trunc() {
     this.push(byte`\xab`)
@@ -1868,6 +1896,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Saturating truncation of f64 to signed i32.
    * Pops 1 value, pushes truncated integer as i32.
    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   * @returns {I32_}
    */
   to_i32_trunc_sat() {
     this.push(byte`\xfc\x02`)
@@ -1877,6 +1906,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Saturating truncation of f64 to unsigned i32.
    * Pops 1 value, pushes truncated integer as i32.
    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   * @returns {I32_}
    */
   to_u32_trunc_sat() {
     this.push(byte`\xfc\x03`)
@@ -1886,6 +1916,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Truncates f64 to signed i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Traps if value is NaN, ±infinity, or out of i64 range.
+   * @returns {I64_}
    */
   to_i64_trunc() {
     this.push(byte`\xb0`)
@@ -1895,6 +1926,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Truncates f64 to unsigned i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Traps if value is NaN, ±infinity, or out of u64 range.
+   * @returns {I64_}
    */
   to_u64_trunc() {
     this.push(byte`\xb1`)
@@ -1912,6 +1944,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Saturating truncation of f64 to signed i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   * @returns {I64_}
    */
   to_i64_trunc_sat() {
     this.push(byte`\xfc\x06`)
@@ -1921,6 +1954,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Saturating truncation of f64 to unsigned i64.
    * Pops 1 value, pushes truncated integer as i64.
    * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   * @returns {I64_}
    */
   to_u64_trunc_sat() {
     this.push(byte`\xfc\x07`)
@@ -1930,12 +1964,15 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Demotes f64 to f32 (loses precision).
    * Pops 1 value, pushes f32 equivalent.
    * Rounds to nearest representable f32 value.
+   * @returns {F32_}
    */
   to_f32() {
     this.push(byte`\xb6`)
     return F32.from(this)
   }
-}, {
+}
+/** @type {F64_} */
+export const F64 = new Proxy(F64_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -1943,7 +1980,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
   }
 })
 
-export const V128 = new Proxy(class V128_ extends InstrArray {
+class V128_ extends InstrArray {
   /**
    * Loads a 128-bit vector from linear memory at the address popped from the stack.
    * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
@@ -2133,7 +2170,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   any_true() {
     this.push(byte`\xfd\x53`)
-    return this
+    return I32.from(this)
   }
   /**
    * Loads a single byte from memory into a specific lane of a 128-bit vector.
@@ -2141,7 +2178,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load8_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x54`, [0, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2151,7 +2188,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load16_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x55`, [1, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2161,7 +2198,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load32_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x56`, [2, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2171,7 +2208,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load64_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x57`, [3, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2181,7 +2218,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   store8_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x58`, [0 , encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2191,7 +2228,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   store16_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x59`, [1 , encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2201,7 +2238,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   store32_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x5a`, [2 , encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2211,7 +2248,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   store64_lane(lane, ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x5b`, [3, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2221,7 +2258,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load32_zero(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x5c`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2231,7 +2268,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
    */
   load64_zero(ptr = null, offset = 0) {
     if (ptr !== null)
-      this.push(I32.bytes(ptr))
+      this.unshift(I32.bytes(ptr))
     this.push([byte`\xfd\x5d`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2243,7 +2280,9 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
     this.push([byte`\xfd\x0c`, encode_v128(val)])
     return this
   }
-}, {
+}
+/** @type {V128_} */
+export const V128 = new Proxy(V128_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -2251,7 +2290,7 @@ export const V128 = new Proxy(class V128_ extends InstrArray {
   }
 })
 
-export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
+class I8x16_ extends InstrArray {
   /**
    * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
    * Pops two vectors and uses a 16-byte immediate mask to produce the result.
@@ -2284,18 +2323,20 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
   /**
    * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
    * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+   * @returns {I32_}
    */
   extract_lane_s(index) {
     this.push([byte`\xfd\x15`, index])
-    return this
+    return I32.from(this)
   }
   /**
    * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
    * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
+   * @returns {I32_}
    */
   extract_lane_u(index) {
     this.push([byte`\xfd\x16`, index])
-    return this
+    return I32.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
@@ -2303,7 +2344,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   replace_lane(val, index) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push([byte`\xfd\x17`, index])
     return this
   }
@@ -2437,7 +2478,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   all_true() {
     this.push(byte`\xfd\x63`)
-    return this
+    return I32.bytes(this)
   }
   /**
    * Creates a bitmask from an `i8x16` vector.
@@ -2445,7 +2486,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   bitmask() {
     this.push(byte`\xfd\x64`)
-    return this
+    return I32.bytes(this)
   }
   /**
    * Narrows an `i16x8` vector to an `i8x16` vector using signed saturation.
@@ -2473,7 +2514,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   shl(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x6b`)
     return this
   }
@@ -2483,7 +2524,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   shr_s(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x6c`)
     return this
   }
@@ -2493,7 +2534,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   shr_u(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x6d`)
     return this
   }
@@ -2503,7 +2544,7 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
    */
   add(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I8x16.bytes(val))
     this.push(byte`\xfd\x6e`)
     return this
   }
@@ -2616,7 +2657,9 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
     this.push([byte`\xfd\x0c`, encode_v128(vals)])
     return this
   }
-}, {
+}
+/** @type {I8x16_} */
+export const I8x16 = new Proxy(I8x16_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -2624,24 +2667,25 @@ export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
   }
 })
 
-export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
+class I16x8_ extends InstrArray {
   /**
    * Creates a 128-bit vector by replicating a 16-bit integer across all lanes.
    * Pops 1 value and splats it across all 8 lanes of the vector.
    */
   splat(val) {
     if (val !== undefined)
-      this.push(I32.bytes(val))
+      this.push(I32.const(val, "i17"))
     this.push(byte`\xfd\x10`)
     return this
   }
   /**
    * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
    * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+   * @returns {I32_}
    */
   extract_lane_s(index) {
     this.push([byte`\xfd\x18`, index])
-    return this
+    return I32.from(this)
   }
   /**
    * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
@@ -2649,7 +2693,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   extract_lane_u(index) {
     this.push([byte`\xfd\x19`, index])
-    return this
+    return I32.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
@@ -2825,7 +2869,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   all_true() {
     this.push(byte`\xfd\x83\x01`)
-    return this
+    return I32.from(this)
   }
   /**
    * Creates a bitmask from an `i16x8` vector.
@@ -2833,7 +2877,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   bitmask() {
     this.push(byte`\xfd\x84\x01`)
-    return this
+    return I32.from(this)
   }
   /**
    * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
@@ -2893,7 +2937,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   shl(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x8b\x01`)
     return this
   }
@@ -2903,7 +2947,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   shr_s(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x8c\x01`)
     return this
   }
@@ -2913,7 +2957,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
    */
   shr_u(val) {
     if (val !== undefined)
-      this.push(InstrArray.bytes(val))
+      this.push(I32.bytes(val))
     this.push(byte`\xfd\x8d\x01`)
     return this
   }
@@ -3086,7 +3130,9 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
     this.push([byte`\xfd\x0c`, encode_v128(vals)])
     return this
   }
-}, {
+}
+/** @type {I16x8_} */
+export const I16x8 = new Proxy(I16x8_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
@@ -3094,7 +3140,7 @@ export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
   }
 })
 
-export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
+class I32x4_ extends InstrArray {
   /**
    * Creates a 128-bit vector by replicating a 32-bit integer across all lanes.
    * Pops 1 value and splats it across all 4 lanes of the vector.
@@ -3111,7 +3157,7 @@ export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
    */
   extract_lane(index) {
     this.push([byte`\xfd\x1b`, index])
-    return this
+    return I32.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
@@ -3245,7 +3291,7 @@ export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
    */
   all_true() {
     this.push(byte`\xfd\xa3\x01`)
-    return this
+    return I32.from(this)
   }
   /**
    * Creates a bitmask from an `i32x4` vector.
@@ -3253,7 +3299,7 @@ export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
    */
   bitmask() {
     this.push(byte`\xfd\xa4\x01`)
-    return this
+    return I32.from(this)
   }
   /**
    * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
@@ -3478,7 +3524,9 @@ export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
     this.push([byte`\xfd\x0c`, encode_v128(vals)])
     return this
   }
-}, {
+}
+/** @type {I32x4_} */
+export const I32x4 = new Proxy(I32x4_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()

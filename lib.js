@@ -7,16 +7,16 @@ const IS_DEBUG = true
 const DEBUG = IS_DEBUG
   ? (start, arr = [], what) => console.log(`${what ? "- " + what + ":\n" : ""}${[...arr].map(v => {
     let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
-    val = typeof val === "number" || typeof val === "bigint" ? val.toString(16).padEnd(4, " ")
+    val = typeof val === "number" || typeof val === "bigint" ? val.toString(10).padEnd(4, " ")
       + (val > 9 ? ` (${val})` : "") : val
     // console.log(v, v.length)
     return v instanceof Array && v.length === 3 && typeof v[2] === "number"
-      ? `${((start += v[2]) - v[2]).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+      ? `${((start += v[2]) - v[2]).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
       : v instanceof Array && v.length === 2
-        ? `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
+        ? `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`.padEnd(45, " ") + v[1]
         : v instanceof Array && v.length === 0
           ? ""
-          : `${((start += 1) - 1).toString(16).padStart(3, "0")}: ${val}`
+          : `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`
   }
   ).filter(v => v).join("\n")
     }`)
@@ -143,6 +143,7 @@ export function encodeLEB128(type, value) {
   const maxValue = isSigned ? BigInt(2 ** (N - 1)) - 1n : BigInt(2 ** N) - 1n;
   const minValue = isSigned ? -BigInt(2 ** (N - 1)) : 0n;
 
+  console.log("value", value)
   if (typeof value !== 'number' && typeof value !== 'bigint') {
     throw new Error(`Invalid value: ${value}. Must be a number or bigint.`);
   }
@@ -404,6 +405,8 @@ export default class {
       if (kind.code === import_kind.func) {
         result[name] = this.functions_count++;
         kind.type = this.getFuncTypeIndex(kind.type)
+      } else if (kind.code === import_kind.global) {
+        result[name] = this.newGlobal(kind.type[0], undefined, kind.type[1])
       }
       this.imports.push({ namespace, name, kind });
     }
@@ -482,16 +485,16 @@ export default class {
   newGlobal(type, value, mutability = 0) {
     guard({type})
 
-    let global_id = this.globals.findIndex(v =>
-      v.type === type &&
-      v.mutability === mutability &&
-      (v.type === Type.funcref
-        ? v.value === value
-        : (v.value ?? 0) === (value ?? 0))
-    )
-    if (global_id >= 0) return global_id
+    // let global_id = this.globals.findIndex(v =>
+    //   v.type === type &&
+    //   v.mutability === mutability &&
+    //   (v.type === Type.funcref
+    //     ? v.value === value
+    //     : (v.value ?? 0) === (value ?? 0))
+    // )
+    // if (global_id >= 0) return global_id
 
-    global_id = this.globals.length
+    let global_id = this.globals.length
     switch (type) {
       case Type.i32:
         this.globals.push({ type, value, val_bytes: [...W.I32.const(value), W.end], mutability })
@@ -698,7 +701,7 @@ export default class {
 
     this.#exe.push(
       section.global,
-      size + 1,
+      ...leb("u32", size + 1),
       this.globals.length,
     )
 
@@ -807,6 +810,24 @@ export default class {
 
     let acc_len = this.#exe.length
     this.funcs.forEach((func, i) => {
+      const flatten = function(v, d = 0) {
+        // console.log("f"+d, v, v instanceof InstrArray)
+        if (!(v instanceof Array)) return [v]
+        if (v.length === 1) return v
+        if (v.length === 2 && v[0] instanceof Array && !(v[0][0] instanceof Array)) return [v]
+        
+        // v = v instanceof Array && v.length === 1 ? v[0] : v;
+        // console.log("f"+d, v, v instanceof InstrArray)
+        // if (v instanceof InstrArray) {
+        //   console.log("ia"+d, v)
+        //   return flatten([...v], d + 1)
+        // } else if (v[0] instanceof Array && v.length > 2) {
+        //   console.log("a"+d, v)
+        //   return v.flatMap(ch => flatten(ch, d + 100))
+        // }
+        // console.log("aa"+d, v)
+        return v.flatMap(ch => flatten(ch, (d + 1) * 100))
+      }
       DEBUG(acc_len, [
         [unleb(funcs[i]).value, `function len`, unleb(funcs[i]).bytesRead],
         [func.locals.length, "local declarations count"],
@@ -814,15 +835,17 @@ export default class {
           [debug_byte_arr([count, type]), `local: [${count}]${Type[type]}`, 2]
         ),
         ...func.code
+          // .map(flatten)
           // .map(v => (console.log("v1:", v), v))
-          .flatMap(v => v instanceof InstrArray ? v : [v])
+          // .flatMap(v => v instanceof InstrArray ? v : [v])
           // .map(v => (console.log("v2:", v), v))
-          .flatMap(v => (v[0] instanceof Array && v.length > 2)
-            ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v]
-          )
+          // .flatMap(v => (v[0] instanceof Array && v.length > 2)
+          //   ? [v[0], ...v.slice(1, -1).flat(), v.at(-1)] : [v]
+          // )
+          .flatMap(flatten)
           // .map(v => (console.log("v3:", v), v))
           .map(v => {
-            const first_is_instr = v[0] instanceof Array
+            const first_is_instr = v[0] instanceof Array && v[0]
             // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
             if (!first_is_instr) return [debug_byte_arr(v), W[v]]
             const instr = W[v[0]]
@@ -866,6 +889,10 @@ export default class {
               case instr.startsWith("br"):
               case instr.startsWith("memory_"):
               case instr === "call":
+              case instr.startsWith("i16x8_extract_lane"):
+              case instr.startsWith("i16x8_replace_lane"):
+              case instr.startsWith("i8x16_extract_lane"):
+              case instr.startsWith("i8x16_replace_lane"):
                 // instr/val are not changed
                 break
               case instr.startsWith("selectt"):
@@ -928,7 +955,7 @@ export default class {
     this.assembleDataCountSection()
     this.assembleNameSection()
 
-    // if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i.toString(16), debug_byte_arr([v])))
+    if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i.toString(10), debug_byte_arr([v])))
 
     return new Uint8Array(this.#exe)
   }
