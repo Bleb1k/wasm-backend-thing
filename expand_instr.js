@@ -233,9 +233,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Counts leading zero bits in i32.
    * Pops 1 value, pushes the count of leading zeros (0-32) as i32.
    */
-  clz(val = null) {
-    if (val !== null)
-      this.push(I32.bytes(val))
+  clz() {
     this.push(byte`\x67`)
     return this
   }
@@ -243,9 +241,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Counts trailing zero bits in i32.
    * Pops 1 value, pushes the count of trailing zeros (0-32) as i32.
    */
-  ctz(val = null) {
-    if (val !== null)
-      this.push(I32.bytes(val))
+  ctz() {
     this.push(byte`\x68`)
     return this
   }
@@ -253,9 +249,7 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
    * Counts the number of set bits (1s) in i32.
    * Pops 1 value, pushes the population count as i32.
    */
-  popcnt(val = null) {
-    if (val !== null)
-      this.push(I32.bytes(val))
+  popcnt() {
     this.push(byte`\x69`)
     return this
   }
@@ -517,6 +511,66 @@ export const I32 = new Proxy(class I32_ extends InstrArray {
     this.push(byte`\xfc\x03`)
     return this
   }
+  /**
+   * Sign-extends i32 to i64.
+   * Pops 1 i32 value, pushes sign-extended i64.
+   */
+  to_i64_extend() {
+    this.push(byte`\xac`)
+    return I64.from(this)
+  }
+  /**
+   * Zero-extends i32 to i64.
+   * Pops 1 i32 value, pushes zero-extended i64.
+   */
+  to_u64_extend() {
+    this.push(byte`\xad`)
+    return I64.from(this)
+  }
+  /**
+   * Converts signed i32 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision for large integers.
+   */
+  to_f32_convert_s() {
+    this.push(byte`\xb2`)
+    return F32.from(this)
+  }
+  /**
+   * Converts unsigned i32 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision for large integers.
+   */
+  to_f32_convert_u() {
+    this.push(byte`\xb3`)
+    return F32.from(this)
+  }
+  /**
+   * Reinterprets i32 bits as f32 (bitwise copy).
+   * Pops 1 value, pushes raw bits as f32.
+   */
+  as_f32() {
+    this.push(byte`\xbe`)
+    return F32.from(this)
+  }
+  /**
+   * Converts signed i32 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Exact conversion (no precision loss).
+   */
+  to_f64_convert_s() {
+    this.push(byte`\xb7`)
+    return F64.from(this)
+  }
+  /**
+   * Converts unsigned i32 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Exact conversion (no precision loss).
+   */
+  to_f64_convert_u() {
+    this.push(byte`\xb8`)
+    return F64.from(this)
+  }
 }, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
@@ -659,9 +713,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Checks if the top i64 value is zero.
    * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
    */
-  eqz(val = null) {
-    if (val !== null)
-      this.push(I64.bytes(val))
+  eqz() {
     this.push(byte`\x50`)
     return this
   }
@@ -769,9 +821,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Counts leading zero bits in i64.
    * Pops 1 value, pushes the count (0-64) as i64.
    */
-  clz(val = null) {
-    if (val !== null)
-      this.push(I64.bytes(val))
+  clz() {
     this.push(byte`\x79`)
     return this
   }
@@ -779,9 +829,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Counts trailing zero bits in i64.
    * Pops 1 value, pushes the count (0-64) as i64.
    */
-  ctz(val = null) {
-    if (val !== null)
-      this.push(I64.bytes(val))
+  ctz() {
     this.push(byte`\x7a`)
     return this
   }
@@ -789,9 +837,7 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
    * Counts set bits (1s) in i64.
    * Pops 1 value, pushes the population count as i64.
    */
-  popcnt(val = null) {
-    if (val !== null)
-      this.push(I64.bytes(val))
+  popcnt() {
     this.push(byte`\x7b`)
     return this
   }
@@ -1069,6 +1115,66 @@ export const I64 = new Proxy(class I64_ extends InstrArray {
     this.push(byte`\xfc\x07`)
     return this
   }
+  /**
+   * Wraps i64 to i32 (discards high 32 bits).
+   * Pops 1 i64 value, pushes low 32 bits as i32.
+   */
+  to_i32_wrap() {
+    this.push(byte`\xa7`)
+    return I32.from(this)
+  }
+  /**
+   * Converts signed i64 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Likely loses precision (f32 has 23-bit mantissa).
+   */
+  to_f32_convert_s() {
+    this.push(byte`\xb4`)
+    return F32.from(this)
+  }
+  /**
+   * Converts unsigned i64 to f32.
+   * Pops 1 value, pushes floating-point equivalent.
+   * Likely loses precision (f32 has 23-bit mantissa).
+   */
+  to_f32_convert_u() {
+    this.push(byte`\xb5`)
+    return F32.from(this)
+  }
+  /**
+   * Converts signed i64 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision (f64 has 52-bit mantissa).
+   */
+  to_f64_convert_s() {
+    this.push(byte`\xb9`)
+    return F64.from(this)
+  }
+  /**
+   * Reinterprets i64 bits as f64 (bitwise copy).
+   * Pops 1 value, pushes raw bits as f64.
+   */
+  as_f64() {
+    this.push(byte`\xbf`)
+    return F64.from(this)
+  }
+  /**
+   * Converts unsigned i64 to f64.
+   * Pops 1 value, pushes floating-point equivalent.
+   * May lose precision (f64 has 52-bit mantissa).
+   */
+  to_f64_convert_u() {
+    this.push(byte`\xba`)
+    return F64.from(this)
+  }
+  /**
+   * Reinterprets i64 bits as f64 (bitwise copy).
+   * Pops 1 value, pushes raw bits as f64.
+   */
+  as_f64() {
+    this.push(byte`\xbf`)
+    return F64.from(this)
+  }
 }, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
@@ -1178,9 +1284,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Absolute value for f32.
    * Pops 1 value, pushes |a| as f32 (preserves NaN).
    */
-  abs(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  abs() {
     this.push(byte`\x8b`)
     return this
   }
@@ -1188,9 +1292,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Negation for f32.
    * Pops 1 value, pushes -a as f32 (flips sign bit).
    */
-  neg(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  neg() {
     this.push(byte`\x8c`)
     return this
   }
@@ -1198,9 +1300,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Rounds f32 up to nearest integer.
    * Pops 1 value, pushes ceil(a) as f32.
    */
-  ceil(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  ceil() {
     this.push(byte`\x8d`)
     return this
   }
@@ -1208,9 +1308,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Rounds f32 down to nearest integer.
    * Pops 1 value, pushes floor(a) as f32.
    */
-  floor(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  floor() {
     this.push(byte`\x8e`)
     return this
   }
@@ -1218,9 +1316,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Truncates f32 toward zero.
    * Pops 1 value, pushes trunc(a) as f32.
    */
-  trunc(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  trunc() {
     this.push(byte`\x8f`)
     return this
   }
@@ -1229,9 +1325,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Pops 1 value, pushes rounded result as f32.
    * Follows IEEE 754 rules (NaN → NaN).
    */
-  nearest(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  nearest() {
     this.push(byte`\x90`)
     return this
   }
@@ -1240,9 +1334,7 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
    * Pops 1 value, pushes sqrt(a) as f32.
    * Returns NaN for negative inputs.
    */
-  sqrt(val = null) {
-    if (val !== null)
-      this.push(F32.bytes(val))
+  sqrt() {
     this.push(byte`\x91`)
     return this
   }
@@ -1375,6 +1467,94 @@ export const F32 = new Proxy(class F32_ extends InstrArray {
     this.push(byte`\xbe`)
     return this
   }
+  /**
+   * Truncates f32 to signed i32.
+   * Pops 1 f32 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of i32 range.
+   */
+  to_i32_trunc() {
+    this.push(byte`\xa8`)
+    return I32.from(this)
+  }
+  /**
+   * Truncates f32 to unsigned i32.
+   * Pops 1 f32 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of u32 range.
+   */
+  to_u32_trunc() {
+    this.push(byte`\xa9`)
+    return I32.from(this)
+  }
+  /**
+   * Reinterprets f32 bits as i32 (bitwise copy).
+   * Pops 1 value, pushes raw bits as i32.
+   */
+  as_i32() {
+    this.push(byte`\xbc`)
+    return I32.from(this)
+  }
+  /**
+   * Saturating truncation of f32 to signed i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   */
+  to_i32_trunc_sat() {
+    this.push(byte`\xfc\x00`)
+    return I32.from(this)
+  }
+  /**
+   * Saturating truncation of f32 to unsigned i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   */
+  to_u32_trunc_sat() {
+    this.push(byte`\xfc\x01`)
+    return I32.from(this)
+  }
+  /**
+   * Truncates f32 to signed i64.
+   * Pops 1 f32 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of i64 range.
+   */
+  to_i64_trunc() {
+    this.push(byte`\xae`)
+    return I64.from(this)
+  }
+  /**
+   * Truncates f32 to unsigned i64.
+   * Pops 1 f32 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of u64 range.
+   */
+  to_u64_trunc() {
+    this.push(byte`\xaf`)
+    return I64.from(this)
+  }
+  /**
+   * Saturating truncation of f32 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   */
+  to_i64_trunc_sat() {
+    this.push(byte`\xfc\x04`)
+    return I64.from(this)
+  }
+  /**
+   * Saturating truncation of f32 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   */
+  to_u64_trunc_sat() {
+    this.push(byte`\xfc\x05`)
+    return I64.from(this)
+  }
+  /**
+   * Promotes f32 to f64 (exact conversion).
+   * Pops 1 value, pushes f64 equivalent.
+   */
+  to_f64() {
+    this.push(byte`\xbb`)
+    return F64.from(this)
+  }
 }, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
@@ -1484,9 +1664,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Absolute value for f64.
    * Pops 1 value, pushes |a| as f64 (preserves NaN).
    */
-  abs(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  abs() {
     this.push(byte`\x99`)
     return this
   }
@@ -1494,9 +1672,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Negation for f64.
    * Pops 1 value, pushes -a as f64 (flips sign bit).
    */
-  neg(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  neg() {
     this.push(byte`\x9a`)
     return this
   }
@@ -1504,9 +1680,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Rounds f64 up to nearest integer.
    * Pops 1 value, pushes ceil(a) as f64.
    */
-  ceil(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  ceil() {
     this.push(byte`\x9b`)
     return this
   }
@@ -1514,9 +1688,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Rounds f64 down to nearest integer.
    * Pops 1 value, pushes floor(a) as f64.
    */
-  floor(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  floor() {
     this.push(byte`\x9c`)
     return this
   }
@@ -1524,9 +1696,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Truncates f64 toward zero.
    * Pops 1 value, pushes trunc(a) as f64.
    */
-  trunc(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  trunc() {
     this.push(byte`\x9d`)
     return this
   }
@@ -1535,9 +1705,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Pops 1 value, pushes rounded result as f64.
    * Follows IEEE 754 rules (NaN → NaN).
    */
-  nearest(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  nearest() {
     this.push(byte`\x9e`)
     return this
   }
@@ -1546,9 +1714,7 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
    * Pops 1 value, pushes sqrt(a) as f64.
    * Returns NaN for negative inputs.
    */
-  sqrt(val = null) {
-    if (val !== null)
-      this.push(F64.bytes(val))
+  sqrt() {
     this.push(byte`\x9f`)
     return this
   }
@@ -1679,6 +1845,95 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
   reinterpret_i64() {
     this.push(byte`\xbf`)
     return this
+  }
+  /**
+   * Truncates f64 to signed i32.
+   * Pops 1 f64 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of i32 range.
+   */
+  to_i32_trunc() {
+    this.push(byte`\xaa`)
+    return I32.from(this)
+  }
+  /**
+   * Truncates f64 to unsigned i32.
+   * Pops 1 f64 value, pushes truncated integer as i32.
+   * Traps if value is NaN, ±infinity, or out of u32 range.
+   */
+  to_u32_trunc() {
+    this.push(byte`\xab`)
+    return I32.from(this)
+  }
+  /**
+   * Saturating truncation of f64 to signed i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+   */
+  to_i32_trunc_sat() {
+    this.push(byte`\xfc\x02`)
+    return I32.from(this)
+  }
+  /**
+   * Saturating truncation of f64 to unsigned i32.
+   * Pops 1 value, pushes truncated integer as i32.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+   */
+  to_u32_trunc_sat() {
+    this.push(byte`\xfc\x03`)
+    return I32.from(this)
+  }
+  /**
+   * Truncates f64 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of i64 range.
+   */
+  to_i64_trunc() {
+    this.push(byte`\xb0`)
+    return I64.from(this)
+  }
+  /**
+   * Truncates f64 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Traps if value is NaN, ±infinity, or out of u64 range.
+   */
+  to_u64_trunc() {
+    this.push(byte`\xb1`)
+    return I64.from(this)
+  }
+  /**
+   * Reinterprets f64 bits as i64 (bitwise copy).
+   * Pops 1 value, pushes raw bits as i64.
+   */
+  as_i64() {
+    this.push(byte`\xbd`)
+    return I64.from(this)
+  }
+  /**
+   * Saturating truncation of f64 to signed i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+   */
+  to_i64_trunc_sat() {
+    this.push(byte`\xfc\x06`)
+    return I64.from(this)
+  }
+  /**
+   * Saturating truncation of f64 to unsigned i64.
+   * Pops 1 value, pushes truncated integer as i64.
+   * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+   */
+  to_u64_trunc_sat() {
+    this.push(byte`\xfc\x07`)
+    return I64.from(this)
+  }
+  /**
+   * Demotes f64 to f32 (loses precision).
+   * Pops 1 value, pushes f32 equivalent.
+   * Rounds to nearest representable f32 value.
+   */
+  to_f32() {
+    this.push(byte`\xb6`)
+    return F32.from(this)
   }
 }, {
   get: (a, b) => {
