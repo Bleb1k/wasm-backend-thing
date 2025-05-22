@@ -120,6 +120,8 @@ app.newFunction([[], [Type.i32]], [], [
   I32.load16_s(),
 ], { export: "testt" })
 
+// TODO: test V128.bitselect
+
 const { instance, module } = await app.compile();
 
 console.log(instance.exports)

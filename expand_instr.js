@@ -7,7 +7,7 @@ export class InstrArray extends Array {
       "bytes",
       val,
       ["number", "bigint"].includes(typeof val),
-      JSON.stringify(this.const(val)[0]),
+      JSON.stringify(this.const(val)), // [0]
     )
     if (["number", "bigint"].includes(typeof val))
       return this.const(val)[0]
@@ -18,6 +18,9 @@ export class InstrArray extends Array {
       return val.prototype.bytes(val)
     console.error(`Unknown value`, val)
     throw "Can't generate bytes"
+  }
+  static from(val) {
+    return this.push(...val)
   }
 }
 
@@ -1685,6 +1688,1549 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
   }
 })
 
+export const V128 = new Proxy(class V128_ extends InstrArray {
+  /**
+   * Loads a 128-bit vector from linear memory at the address popped from the stack.
+   * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
+   */
+  load(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x00`, [4, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 8 bytes from memory, sign-extends each byte to 16 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load8x8_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x01`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 8 bytes from memory, zero-extends each byte to 16 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load8x8_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x02`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 4 halfwords (16 bits) from memory, sign-extends each halfword to 32 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load16x4_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x03`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 4 halfwords (16 bits) from memory, zero-extends each halfword to 32 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load16x4_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x04`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 2 words (32 bits) from memory, sign-extends each word to 64 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load32x2_s(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x05`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads 2 words (32 bits) from memory, zero-extends each word to 64 bits, and packs into a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load32x2_u(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x06`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a single byte from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+   * Pops address from stack. Requires 1-byte alignment.
+   */
+  load8_splat(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x07`, [0, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a single halfword (16 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+   * Pops address from stack. Requires 2-byte alignment.
+   */
+  load16_splat(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x08`, [1, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a single word (32 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+   * Pops address from stack. Requires 4-byte alignment.
+   */
+  load32_splat(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x09`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a single doubleword (64 bits) from memory and splats it across all lanes of a 128-bit vector.
+   * Pops address from stack. Requires 8-byte alignment.
+   */
+  load64_splat(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x0a`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Stores a 128-bit vector into linear memory at the address popped from the stack.
+   * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
+   */
+  store(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x0b`, [4, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Performs a bitwise NOT operation on a 128-bit vector.
+   * Pops one vector and pushes the result of flipping all bits.
+   */
+  not() {
+    this.push(byte`\xfd\x4d`)
+    return this
+  }
+  /**
+   * Performs a bitwise AND operation on two 128-bit vectors.
+   * Pops two vectors and pushes the result of `(a & b)`.
+   */
+  and(val) {
+    if (val !== undefined)
+      this.push(V128.bytes(val))
+    this.push(byte`\xfd\x4e`)
+    return this
+  }
+  /**
+   * Performs a bitwise AND-NOT operation on two 128-bit vectors.
+   * Pops two vectors and pushes the result of `(a & ~b)`.
+   */
+  andnot(val) {
+    if (val !== undefined)
+      this.push(V128.bytes(val))
+    this.push(byte`\xfd\x4f`)
+    return this
+  }
+  /**
+   * Performs a bitwise OR operation on two 128-bit vectors.
+   * Pops two vectors and pushes the result of `(a | b)`.
+   */
+  or(val) {
+    if (val !== undefined)
+      this.push(V128.bytes(val))
+    this.push(byte`\xfd\x50`)
+    return this
+  }
+  /**
+   * Performs a bitwise XOR operation on two 128-bit vectors.
+   * Pops two vectors and pushes the result of `(a ^ b)`.
+   */
+  xor(val) {
+    if (val !== undefined)
+      this.push(V128.bytes(val))
+    this.push(byte`\xfd\x51`)
+    return this
+  }
+  /**
+   * Selects bits from two vectors based on a mask vector.
+   * Pops three vectors: mask, true_vector, false_vector.
+   * For each bit in the mask, selects the corresponding bit from `true_vector` if the mask bit is `1`, otherwise from `false_vector`.
+   */
+  bitselect(false_vector, true_vector, mask) {
+    if (mask !== undefined)
+      this.push(V128.bytes(mask))
+    if (true_vector !== undefined)
+      this.push(V128.bytes(true_vector))
+    if (false_vector !== undefined)
+      this.push(V128.bytes(false_vector))
+    this.push(byte`\xfd\x52`)
+    return this
+  }
+  /**
+   * Checks if any lane in a 128-bit vector is non-zero.
+   * Pops one vector and pushes `1` (true) if any lane is non-zero, or `0` (false) otherwise.
+   */
+  any_true() {
+    this.push(byte`\xfd\x53`)
+    return this
+  }
+  /**
+   * Loads a single byte from memory into a specific lane of a 128-bit vector.
+   * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
+   */
+  load8_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x54`, [0, encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Loads a single halfword (16 bits) from memory into a specific lane of a 128-bit vector.
+   * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
+   */
+  load16_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x55`, [1, encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
+   * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
+   */
+  load32_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x56`, [2, encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Loads a single doubleword (64 bits) from memory into a specific lane of a 128-bit vector.
+   * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
+   */
+  load64_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x57`, [3, encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Stores a single byte from a specific lane of a 128-bit vector into memory.
+   * Pops an address and a vector, writes the specified lane's byte to memory.
+   */
+  store8_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x58`, [0 , encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Stores a single halfword (16 bits) from a specific lane of a 128-bit vector into memory.
+   * Pops an address and a vector, writes the specified lane's halfword to memory.
+   */
+  store16_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x59`, [1 , encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Stores a single word (32 bits) from a specific lane of a 128-bit vector into memory.
+   * Pops an address and a vector, writes the specified lane's word to memory.
+   */
+  store32_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x5a`, [2 , encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Stores a single doubleword (64 bits) from a specific lane of a 128-bit vector into memory.
+   * Pops an address and a vector, writes the specified lane's doubleword to memory.
+   */
+  store64_lane(lane, ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x5b`, [3, encodeLEB128("u32", offset), lane]])
+    return this
+  }
+  /**
+   * Loads a single word (32 bits) from memory and zero-extends it into a 128-bit vector.
+   * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
+   */
+  load32_zero(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x5c`, [2, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Loads a single doubleword (64 bits) from memory and zero-extends it into a 128-bit vector.
+   * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
+   */
+  load64_zero(ptr = null, offset = 0) {
+    if (ptr !== null)
+      this.push(I32.bytes(ptr))
+    this.push([byte`\xfd\x5d`, [3, encodeLEB128("u32", offset)]])
+    return this
+  }
+  /**
+   * Pushes a 128-bit constant vector onto the stack.
+   * The immediate value is encoded as a literal 128-bit value.
+   */
+  const(val = 0) {
+    this.push([byte`\xfd\x0c`, encode_v128(val)])
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const I8x16 = new Proxy(class I8x16_ extends InstrArray {
+  /**
+   * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
+   * Pops two vectors and uses a 16-byte immediate mask to produce the result.
+   */
+  shuffle(...mask) {
+    console.assert(mask.length === 16)
+    this.push([byte`\xfd\x0d`, mask])
+    return this
+  }
+  /**
+   * Swizzles the first vector using indices from the second vector.
+   * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
+   */
+  swizzle(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x0e`)
+    return this
+  }
+  /**
+   * Creates a 128-bit vector by replicating an 8-bit integer across all lanes.
+   * Pops 1 value and splats it across all 16 lanes of the vector.
+   */
+  splat(val) {
+    if (val !== undefined)
+      this.push(I32.bytes(val))
+    this.push(byte`\xfd\x0f`)
+    return this
+  }
+  /**
+   * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+   */
+  extract_lane_s(index) {
+    this.push([byte`\xfd\x15`, index])
+    return this
+  }
+  /**
+   * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
+   */
+  extract_lane_u(index) {
+    this.push([byte`\xfd\x16`, index])
+    return this
+  }
+  /**
+   * Replaces a specific lane in a 128-bit vector with a new value.
+   * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+   */
+  replace_lane(val, index) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push([byte`\xfd\x17`, index])
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for equality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
+   */
+  eq(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x23`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for inequality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if not equal, or `0x00` otherwise.
+   */
+  ne(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x24`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
+   */
+  lt_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x25`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
+   */
+  lt_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x26`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
+   */
+  gt_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x27`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
+   */
+  gt_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x28`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
+   */
+  le_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x29`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
+   */
+  le_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x2a`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
+   */
+  ge_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x2b`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
+   */
+  ge_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x2c`)
+    return this
+  }
+  /**
+   * Computes the absolute value of each lane in an `i8x16` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+   */
+  abs() {
+    this.push(byte`\xfd\x60`)
+    return this
+  }
+  /**
+   * Negates each lane in an `i8x16` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+   */
+  neg() {
+    this.push(byte`\xfd\x61`)
+    return this
+  }
+  /**
+   * Counts the number of set bits (1s) in each lane of an `i8x16` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by the population count of the original lane.
+   */
+  popcnt() {
+    this.push(byte`\xfd\x62`)
+    return this
+  }
+  /**
+   * Checks if all lanes in an `i8x16` vector are non-zero.
+   * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+   */
+  all_true() {
+    this.push(byte`\xfd\x63`)
+    return this
+  }
+  /**
+   * Creates a bitmask from an `i8x16` vector.
+   * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+   */
+  bitmask() {
+    this.push(byte`\xfd\x64`)
+    return this
+  }
+  /**
+   * Narrows an `i16x8` vector to an `i8x16` vector using signed saturation.
+   * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
+   */
+  narrow_i16x8_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x65`)
+    return this
+  }
+  /**
+   * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
+   * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
+   */
+  narrow_i16x8_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x66`)
+    return this
+  }
+  /**
+   * Performs a bitwise left shift on each lane of an `i8x16` vector.
+   * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+   */
+  shl(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x6b`)
+    return this
+  }
+  /**
+   * Performs an arithmetic right shift on each lane of an `i8x16` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+   */
+  shr_s(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x6c`)
+    return this
+  }
+  /**
+   * Performs a logical right shift on each lane of an `i8x16` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+   */
+  shr_u(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x6d`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i8x16` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+   */
+  add(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x6e`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i8x16` vectors using signed saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
+   */
+  add_sat_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x6f`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i8x16` vectors using unsigned saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
+   */
+  add_sat_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x70`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i8x16` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+   */
+  sub(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x71`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i8x16` vectors using signed saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
+   */
+  sub_sat_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x72`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i8x16` vectors using unsigned saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
+   */
+  sub_sat_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x73`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i8x16` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x76`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x77`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i8x16` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_s(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x78`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x79`)
+    return this
+  }
+  /**
+   * Computes the unsigned average (rounded) of corresponding lanes of two `i8x16` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
+   */
+  avgr_u(val) {
+    if (val !== undefined)
+      this.push(I8x16.bytes(val))
+    this.push(byte`\xfd\x7b`)
+    return this
+  }
+  /**
+   * Pushes a 128-bit constant vector onto the stack.
+   * The immediate value is encoded as a vector of 16 8-bit values.
+   */
+  const(...vals) {
+    console.assert(vals.length === 16)
+    this.push([byte`\xfd\x0c`, encode_v128(vals)])
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const I16x8 = new Proxy(class I16x8_ extends InstrArray {
+  /**
+   * Creates a 128-bit vector by replicating a 16-bit integer across all lanes.
+   * Pops 1 value and splats it across all 8 lanes of the vector.
+   */
+  splat(val) {
+    if (val !== undefined)
+      this.push(I32.bytes(val))
+    this.push(byte`\xfd\x10`)
+    return this
+  }
+  /**
+   * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+   */
+  extract_lane_s(index) {
+    this.push([byte`\xfd\x18`, index])
+    return this
+  }
+  /**
+   * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
+   */
+  extract_lane_u(index) {
+    this.push([byte`\xfd\x19`, index])
+    return this
+  }
+  /**
+   * Replaces a specific lane in a 128-bit vector with a new value.
+   * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+   */
+  replace_lane(val, index) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push([byte`\xfd\x1a`, index])
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for equality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
+   */
+  eq(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x2d`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for inequality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
+   */
+  ne(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x2e`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
+   */
+  lt_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x2f`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
+   */
+  lt_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x30`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
+   */
+  gt_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x31`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
+   */
+  gt_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x32`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
+   */
+  le_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x33`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
+   */
+  le_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x34`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
+   */
+  ge_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x35`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
+   */
+  ge_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x36`)
+    return this
+  }
+  /**
+   * Adds adjacent pairs of lanes in an `i8x16` vector using signed addition, producing an `i16x8` vector.
+   * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+   */
+  extadd_pairwise_i8x16_s() {
+    this.push(byte`\xfd\x7c`)
+    return this
+  }
+  /**
+   * Adds adjacent pairs of lanes in an `i8x16` vector using unsigned addition, producing an `i16x8` vector.
+   * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+   */
+  extadd_pairwise_i8x16_u() {
+    this.push(byte`\xfd\x7d`)
+    return this
+  }
+  /**
+   * Adds adjacent pairs of lanes in an `i16x8` vector using signed addition, producing an `i32x4` vector.
+   * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+   */
+  extadd_pairwise_i16x8_s() {
+    this.push(byte`\xfd\x7e`)
+    return this
+  }
+  /**
+   * Adds adjacent pairs of lanes in an `i16x8` vector using unsigned addition, producing an `i32x4` vector.
+   * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+   */
+  extadd_pairwise_i16x8_u() {
+    this.push(byte`\xfd\x7f`)
+    return this
+  }
+  /**
+   * Computes the absolute value of each lane in an `i16x8` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+   */
+  abs() {
+    this.push(byte`\xfd\x80\x01`)
+    return this
+  }
+  /**
+   * Negates each lane in an `i16x8` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+   */
+  neg() {
+    this.push(byte`\xfd\x81\x01`)
+    return this
+  }
+  /**
+   * Performs a signed Q15 multiplication with rounding and saturation on each lane of two `i16x8` vectors.
+   * Pops two vectors and pushes a new vector where each lane is `(a * b + 0x4000) >> 15`, saturated to the range of `i16`.
+   */
+  q15mulr_sat_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x82\x01`)
+    return this
+  }
+  /**
+   * Checks if all lanes in an `i16x8` vector are non-zero.
+   * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+   */
+  all_true() {
+    this.push(byte`\xfd\x83\x01`)
+    return this
+  }
+  /**
+   * Creates a bitmask from an `i16x8` vector.
+   * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+   */
+  bitmask() {
+    this.push(byte`\xfd\x84\x01`)
+    return this
+  }
+  /**
+   * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
+   * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `i16`.
+   */
+  narrow_i32x4_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x85\x01`)
+    return this
+  }
+  /**
+   * Narrows an `i32x4` vector to an `i16x8` vector using unsigned saturation.
+   * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `u16`.
+   */
+  narrow_i32x4_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x86\x01`)
+    return this
+  }
+  /**
+   * Extends the low 8 lanes of an `i8x16` vector to 16 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+   */
+  extend_low_i8x16_s() {
+    this.push(byte`\xfd\x87\x01`)
+    return this
+  }
+  /**
+   * Extends the high 8 lanes of an `i8x16` vector to 16 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+   */
+  extend_high_i8x16_s() {
+    this.push(byte`\xfd\x88\x01`)
+    return this
+  }
+  /**
+   * Extends the low 8 lanes of an `i8x16` vector to 16 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+   */
+  extend_low_i8x16_u() {
+    this.push(byte`\xfd\x89\x01`)
+    return this
+  }
+  /**
+   * Extends the high 8 lanes of an `i8x16` vector to 16 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+   */
+  extend_high_i8x16_u() {
+    this.push(byte`\xfd\x8a\x01`)
+    return this
+  }
+  /**
+   * Performs a bitwise left shift on each lane of an `i16x8` vector.
+   * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+   */
+  shl(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x8b\x01`)
+    return this
+  }
+  /**
+   * Performs an arithmetic right shift on each lane of an `i16x8` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+   */
+  shr_s(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x8c\x01`)
+    return this
+  }
+  /**
+   * Performs a logical right shift on each lane of an `i16x8` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+   */
+  shr_u(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\x8d\x01`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i16x8` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+   */
+  add(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x8e\x01`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i16x8` vectors using signed saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
+   */
+  add_sat_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x8f\x01`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i16x8` vectors using unsigned saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
+   */
+  add_sat_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x90\x01`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i16x8` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+   */
+  sub(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x91\x01`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i16x8` vectors using signed saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
+   */
+  sub_sat_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x92\x01`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i16x8` vectors using unsigned saturation.
+   * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
+   */
+  sub_sat_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x93\x01`)
+    return this
+  }
+  /**
+   * Multiplies corresponding lanes of two `i16x8` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+   */
+  mul(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x95\x01`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i16x8` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x96\x01`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x97\x01`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i16x8` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x98\x01`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x99\x01`)
+    return this
+  }
+  /**
+   * Computes the unsigned average (rounded) of corresponding lanes of two `i16x8` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
+   */
+  avgr_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x9b\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+   */
+  extmul_low_i8x16_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x9c\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+   */
+  extmul_high_i8x16_s(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x9d\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+   */
+  extmul_low_i8x16_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x9e\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+   */
+  extmul_high_i8x16_u(val) {
+    if (val !== undefined)
+      this.push(I16x8.bytes(val))
+    this.push(byte`\xfd\x9f\x01`)
+    return this
+  }
+  /**
+   * Pushes a 128-bit constant vector onto the stack.
+   * The immediate value is encoded as a vector of 8 16-bit values.
+   */
+  const(...vals) {
+    console.assert(vals.length === 8)
+    this.push([byte`\xfd\x0c`, encode_v128(vals)])
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
+export const I32x4 = new Proxy(class I32x4_ extends InstrArray {
+  /**
+   * Creates a 128-bit vector by replicating a 32-bit integer across all lanes.
+   * Pops 1 value and splats it across all 4 lanes of the vector.
+   */
+  splat(val) {
+    if (val !== undefined)
+      this.push(I32.bytes(val))
+    this.push(byte`\xfd\x11`)
+    return this
+  }
+  /**
+   * Extracts a 32-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i32.
+   */
+  extract_lane(index) {
+    this.push([byte`\xfd\x1b`, index])
+    return this
+  }
+  /**
+   * Replaces a specific lane in a 128-bit vector with a new value.
+   * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+   */
+  replace_lane(val, index) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push([byte`\xfd\x1c`, index])
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for equality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
+   */
+  eq(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x37`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for inequality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if not equal, or `0x00000000` otherwise.
+   */
+  ne(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x38`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
+   */
+  lt_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x39`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
+   */
+  lt_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3a`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
+   */
+  gt_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3b`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
+   */
+  gt_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3c`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
+   */
+  le_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3d`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
+   */
+  le_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3e`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
+   */
+  ge_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x3f`)
+    return this
+  }
+  /**
+   * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
+   */
+  ge_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\x40`)
+    return this
+  }
+  /**
+   * Computes the absolute value of each lane in an `i32x4` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+   */
+  abs() {
+    this.push(byte`\xfd\xa0\x01`)
+    return this
+  }
+  /**
+   * Negates each lane in an `i32x4` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+   */
+  neg() {
+    this.push(byte`\xfd\xa1\x01`)
+    return this
+  }
+  /**
+   * Checks if all lanes in an `i32x4` vector are non-zero.
+   * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+   */
+  all_true() {
+    this.push(byte`\xfd\xa3\x01`)
+    return this
+  }
+  /**
+   * Creates a bitmask from an `i32x4` vector.
+   * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+   */
+  bitmask() {
+    this.push(byte`\xfd\xa4\x01`)
+    return this
+  }
+  /**
+   * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+   */
+  extend_low_i16x8_s() {
+    this.push(byte`\xfd\xa7\x01`)
+    return this
+  }
+  /**
+   * Extends the high 4 lanes of an `i16x8` vector to 32 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+   */
+  extend_high_i16x8_s() {
+    this.push(byte`\xfd\xa8\x01`)
+    return this
+  }
+  /**
+   * Extends the low 4 lanes of an `i16x8` vector to 32 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+   */
+  extend_low_i16x8_u() {
+    this.push(byte`\xfd\xa9\x01`)
+    return this
+  }
+  /**
+   * Extends the high 4 lanes of an `i16x8` vector to 32 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+   */
+  extend_high_i16x8_u() {
+    this.push(byte`\xfd\xaa\x01`)
+    return this
+  }
+  /**
+   * Performs a bitwise left shift on each lane of an `i32x4` vector.
+   * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+   */
+  shl(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\xab\x01`)
+    return this
+  }
+  /**
+   * Performs an arithmetic right shift on each lane of an `i32x4` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+   */
+  shr_s(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\xac\x01`)
+    return this
+  }
+  /**
+   * Performs a logical right shift on each lane of an `i32x4` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+   */
+  shr_u(val) {
+    if (val !== undefined)
+      this.push(InstrArray.bytes(val))
+    this.push(byte`\xfd\xad\x01`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i32x4` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+   */
+  add(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xae\x01`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i32x4` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+   */
+  sub(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb1\x01`)
+    return this
+  }
+  /**
+   * Multiplies corresponding lanes of two `i32x4` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+   */
+  mul(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb5\x01`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i32x4` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb6\x01`)
+    return this
+  }
+  /**
+   * Computes the minimum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+   */
+  min_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb7\x01`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i32x4` vectors using signed comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb8\x01`)
+    return this
+  }
+  /**
+   * Computes the maximum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
+   * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+   */
+  max_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xb9\x01`)
+    return this
+  }
+  /**
+   * Computes the dot product of two `i16x8` vectors, producing an `i32x4` vector.
+   * Pops two vectors, computes the dot product of adjacent pairs of lanes, and pushes the result as an `i32x4` vector.
+   */
+  dot_i16x8_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xba\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+   */
+  extmul_low_i16x8_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xbb\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+   */
+  extmul_high_i16x8_s(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xbc\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+   */
+  extmul_low_i16x8_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xbd\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+   */
+  extmul_high_i16x8_u(val) {
+    if (val !== undefined)
+      this.push(I32x4.bytes(val))
+    this.push(byte`\xfd\xbe\x01`)
+    return this
+  }
+  /**
+   * Converts each lane of an `f32x4` vector to a signed `i32x4` vector using saturation.
+   * Pops one vector and pushes a new vector where each lane is truncated to `i32` with saturation if the result exceeds the range of `i32`.
+   */
+  trunc_sat_f32x4_s() {
+    this.push(byte`\xfd\xf8\x01`)
+    return this
+  }
+  /**
+   * Converts each lane of an `f32x4` vector to an unsigned `i32x4` vector using saturation.
+   * Pops one vector and pushes a new vector where each lane is truncated to `u32` with saturation if the result exceeds the range of `u32`.
+   */
+  trunc_sat_f32x4_u() {
+    this.push(byte`\xfd\xf9\x01`)
+    return this
+  }
+  /**
+   * Converts the low two lanes of an `f64x2` vector to a signed `i32x4` vector using saturation.
+   * Pops one vector and pushes a new vector where the low two lanes are truncated to `i32` with saturation, and the high two lanes are zeroed.
+   */
+  trunc_sat_f64x2_s_zero() {
+    this.push(byte`\xfd\xfc\x01`)
+    return this
+  }
+  /**
+   * Converts the low two lanes of an `f64x2` vector to an unsigned `i32x4` vector using saturation.
+   * Pops one vector and pushes a new vector where the low two lanes are truncated to `u32` with saturation, and the high two lanes are zeroed.
+   */
+  trunc_sat_f64x2_u_zero() {
+    this.push(byte`\xfd\xfd\x01`)
+    return this
+  }
+  /**
+   * Pushes a 128-bit constant vector onto the stack.
+   * The immediate value is encoded as a vector of 4 32-bit values.
+   */
+  const(...vals) {
+    console.assert(vals.length === 4)
+    this.push([byte`\xfd\x0c`, encode_v128(vals)])
+    return this
+  }
+}, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  }
+})
+
 
 // let W = {}
 // /**
@@ -1919,805 +3465,6 @@ export const F64 = new Proxy(class F64_ extends InstrArray {
 //      * Pushes a funcref referencing the function at the given index in the module's function table.
 //      */
 //     func: (type) => [byte`\xd2`, type],
-//   },
-//   V128: {
-//     /**
-//      * Loads a 128-bit vector from linear memory at the address popped from the stack.
-//      * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
-//      */
-//     load: (offset = 0) => [byte`\xfd\x00`, 4, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 8 bytes from memory, sign-extends each byte to 16 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load8x8_s: (offset = 0) => [byte`\xfd\x01`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 8 bytes from memory, zero-extends each byte to 16 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load8x8_u: (offset = 0) => [byte`\xfd\x02`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 4 halfwords (16 bits) from memory, sign-extends each halfword to 32 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load16x4_s: (offset = 0) => [byte`\xfd\x03`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 4 halfwords (16 bits) from memory, zero-extends each halfword to 32 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load16x4_u: (offset = 0) => [byte`\xfd\x04`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 2 words (32 bits) from memory, sign-extends each word to 64 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load32x2_s: (offset = 0) => [byte`\xfd\x05`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads 2 words (32 bits) from memory, zero-extends each word to 64 bits, and packs into a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load32x2_u: (offset = 0) => [byte`\xfd\x06`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a single byte from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-//      * Pops address from stack. Requires 1-byte alignment.
-//      */
-//     load8_splat: (offset = 0) => [byte`\xfd\x07`, 0, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a single halfword (16 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-//      * Pops address from stack. Requires 2-byte alignment.
-//      */
-//     load16_splat: (offset = 0) => [byte`\xfd\x08`, 1, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a single word (32 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-//      * Pops address from stack. Requires 4-byte alignment.
-//      */
-//     load32_splat: (offset = 0) => [byte`\xfd\x09`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a single doubleword (64 bits) from memory and splats it across all lanes of a 128-bit vector.
-//      * Pops address from stack. Requires 8-byte alignment.
-//      */
-//     load64_splat: (offset = 0) => [byte`\xfd\x0a`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Stores a 128-bit vector into linear memory at the address popped from the stack.
-//      * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
-//      */
-//     store: (offset = 0) => [byte`\xfd\x0b`, 4, encodeLEB128("u32", offset)],
-//     /**
-//      * Performs a bitwise NOT operation on a 128-bit vector.
-//      * Pops one vector and pushes the result of flipping all bits.
-//      */
-//     not: byte`\xfd\x4d`,
-//     /**
-//      * Performs a bitwise AND operation on two 128-bit vectors.
-//      * Pops two vectors and pushes the result of `(a & b)`.
-//      */
-//     and: byte`\xfd\x4e`,
-//     /**
-//      * Performs a bitwise AND-NOT operation on two 128-bit vectors.
-//      * Pops two vectors and pushes the result of `(a & ~b)`.
-//      */
-//     andnot: byte`\xfd\x4f`,
-//     /**
-//      * Performs a bitwise OR operation on two 128-bit vectors.
-//      * Pops two vectors and pushes the result of `(a | b)`.
-//      */
-//     or: byte`\xfd\x50`,
-//     /**
-//      * Performs a bitwise XOR operation on two 128-bit vectors.
-//      * Pops two vectors and pushes the result of `(a ^ b)`.
-//      */
-//     xor: byte`\xfd\x51`,
-//     /**
-//      * Selects bits from two vectors based on a mask vector.
-//      * Pops three vectors: mask, true_vector, false_vector.
-//      * For each bit in the mask, selects the corresponding bit from `true_vector` if the mask bit is `1`, otherwise from `false_vector`.
-//      */
-//     bitselect: byte`\xfd\x52`,
-//     /**
-//      * Checks if any lane in a 128-bit vector is non-zero.
-//      * Pops one vector and pushes `1` (true) if any lane is non-zero, or `0` (false) otherwise.
-//      */
-//     any_true: byte`\xfd\x53`,
-//     /**
-//      * Loads a single byte from memory into a specific lane of a 128-bit vector.
-//      * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
-//      */
-//     load8_lane: (lane, offset = 0) => [byte`\xfd\x54`, 0, encodeLEB128("u32", offset), lane],
-//     /**
-//      * Loads a single halfword (16 bits) from memory into a specific lane of a 128-bit vector.
-//      * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
-//      */
-//     load16_lane: (lane, offset = 0) => [byte`\xfd\x55`, 1, encodeLEB128("u32", offset), lane],
-//     /**
-//      * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
-//      * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
-//      */
-//     load32_lane: (lane, offset = 0) => [byte`\xfd\x56`, 2, encodeLEB128("u32", offset), lane],
-//     /**
-//      * Loads a single doubleword (64 bits) from memory into a specific lane of a 128-bit vector.
-//      * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
-//      */
-//     load64_lane: (lane, offset = 0) => [byte`\xfd\x57`, 3, encodeLEB128("u32", offset), lane],
-//     /**
-//      * Stores a single byte from a specific lane of a 128-bit vector into memory.
-//      * Pops an address and a vector, writes the specified lane's byte to memory.
-//      */
-//     store8_lane: (lane, offset = 0) => [byte`\xfd\x58`, 0 , encodeLEB128("u32", offset), lane],
-//     /**
-//      * Stores a single halfword (16 bits) from a specific lane of a 128-bit vector into memory.
-//      * Pops an address and a vector, writes the specified lane's halfword to memory.
-//      */
-//     store16_lane: (lane, offset = 0) => [byte`\xfd\x59`, 1 , encodeLEB128("u32", offset), lane],
-//     /**
-//      * Stores a single word (32 bits) from a specific lane of a 128-bit vector into memory.
-//      * Pops an address and a vector, writes the specified lane's word to memory.
-//      */
-//     store32_lane: (lane, offset = 0) => [byte`\xfd\x5a`, 2 , encodeLEB128("u32", offset), lane],
-//     /**
-//      * Stores a single doubleword (64 bits) from a specific lane of a 128-bit vector into memory.
-//      * Pops an address and a vector, writes the specified lane's doubleword to memory.
-//      */
-//     store64_lane: (lane, offset = 0) => [byte`\xfd\x5b`, 3, encodeLEB128("u32", offset), lane],
-//     /**
-//      * Loads a single word (32 bits) from memory and zero-extends it into a 128-bit vector.
-//      * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
-//      */
-//     load32_zero: (offset = 0) => [byte`\xfd\x5c`, 2, encodeLEB128("u32", offset)],
-//     /**
-//      * Loads a single doubleword (64 bits) from memory and zero-extends it into a 128-bit vector.
-//      * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
-//      */
-//     load64_zero: (offset = 0) => [byte`\xfd\x5d`, 3, encodeLEB128("u32", offset)],
-//     /**
-//      * Pushes a 128-bit constant vector onto the stack.
-//      * The immediate value is encoded as a literal 128-bit value.
-//      */
-//     const: (val = 0) => [byte`\xfd\x0c`, encode_v128(val)],
-//   },
-//   I8x16: {
-//     /**
-//      * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
-//      * Pops two vectors and uses a 16-byte immediate mask to produce the result.
-//      */
-//     shuffle: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0d`, vals]),
-//     /**
-//      * Swizzles the first vector using indices from the second vector.
-//      * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
-//      */
-//     swizzle: byte`\xfd\x0e`,
-//     /**
-//      * Creates a 128-bit vector by replicating an 8-bit integer across all lanes.
-//      * Pops 1 value and splats it across all 16 lanes of the vector.
-//      */
-//     splat: byte`\xfd\x0f`,
-//     /**
-//      * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
-//      * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
-//      */
-//     extract_lane_s: (index) => [byte`\xfd\x15`, index],
-//     /**
-//      * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
-//      * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
-//      */
-//     extract_lane_u: (index) => [byte`\xfd\x16`, index],
-//     /**
-//      * Replaces a specific lane in a 128-bit vector with a new value.
-//      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-//      */
-//     replace_lane: (index) => [byte`\xfd\x17`, index],
-//     /**
-//      * Compares two 128-bit vectors for equality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
-//      */
-//     eq: byte`\xfd\x23`,
-//     /**
-//      * Compares two 128-bit vectors for inequality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if not equal, or `0x00` otherwise.
-//      */
-//     ne: byte`\xfd\x24`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
-//      */
-//     lt_s: byte`\xfd\x25`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
-//      */
-//     lt_u: byte`\xfd\x26`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
-//      */
-//     gt_s: byte`\xfd\x27`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
-//      */
-//     gt_u: byte`\xfd\x28`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
-//      */
-//     le_s: byte`\xfd\x29`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
-//      */
-//     le_u: byte`\xfd\x2a`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
-//      */
-//     ge_s: byte`\xfd\x2b`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
-//      */
-//     ge_u: byte`\xfd\x2c`,
-//     /**
-//      * Computes the absolute value of each lane in an `i8x16` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-//      */
-//     abs: byte`\xfd\x60`,
-//     /**
-//      * Negates each lane in an `i8x16` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-//      */
-//     neg: byte`\xfd\x61`,
-//     /**
-//      * Counts the number of set bits (1s) in each lane of an `i8x16` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by the population count of the original lane.
-//      */
-//     popcnt: byte`\xfd\x62`,
-//     /**
-//      * Checks if all lanes in an `i8x16` vector are non-zero.
-//      * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-//      */
-//     all_true: byte`\xfd\x63`,
-//     /**
-//      * Creates a bitmask from an `i8x16` vector.
-//      * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-//      */
-//     bitmask: byte`\xfd\x64`,
-//     /**
-//      * Narrows an `i16x8` vector to an `i8x16` vector using signed saturation.
-//      * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
-//      */
-//     narrow_i16x8_s: byte`\xfd\x65`,
-//     /**
-//      * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
-//      * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
-//      */
-//     narrow_i16x8_u: byte`\xfd\x66`,
-//     /**
-//      * Performs a bitwise left shift on each lane of an `i8x16` vector.
-//      * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-//      */
-//     shl: byte`\xfd\x6b`,
-//     /**
-//      * Performs an arithmetic right shift on each lane of an `i8x16` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-//      */
-//     shr_s: byte`\xfd\x6c`,
-//     /**
-//      * Performs a logical right shift on each lane of an `i8x16` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-//      */
-//     shr_u: byte`\xfd\x6d`,
-//     /**
-//      * Adds corresponding lanes of two `i8x16` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-//      */
-//     add: byte`\xfd\x6e`,
-//     /**
-//      * Adds corresponding lanes of two `i8x16` vectors using signed saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
-//      */
-//     add_sat_s: byte`\xfd\x6f`,
-//     /**
-//      * Adds corresponding lanes of two `i8x16` vectors using unsigned saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
-//      */
-//     add_sat_u: byte`\xfd\x70`,
-//     /**
-//      * Subtracts corresponding lanes of two `i8x16` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-//      */
-//     sub: byte`\xfd\x71`,
-//     /**
-//      * Subtracts corresponding lanes of two `i8x16` vectors using signed saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
-//      */
-//     sub_sat_s: byte`\xfd\x72`,
-//     /**
-//      * Subtracts corresponding lanes of two `i8x16` vectors using unsigned saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
-//      */
-//     sub_sat_u: byte`\xfd\x73`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i8x16` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_s: byte`\xfd\x76`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_u: byte`\xfd\x77`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i8x16` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_s: byte`\xfd\x78`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_u: byte`\xfd\x79`,
-//     /**
-//      * Computes the unsigned average (rounded) of corresponding lanes of two `i8x16` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
-//      */
-//     avgr_u: byte`\xfd\x7b`,
-//     /**
-//      * Pushes a 128-bit constant vector onto the stack.
-//      * The immediate value is encoded as a vector of 16 8-bit values.
-//      */
-//     const: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0c`, encode_v128(vals)]),
-//   },
-//   I16x8: {
-//     /**
-//      * Creates a 128-bit vector by replicating a 16-bit integer across all lanes.
-//      * Pops 1 value and splats it across all 8 lanes of the vector.
-//      */
-//     splat: byte`\xfd\x10`,
-//     /**
-//      * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
-//      * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
-//      */
-//     extract_lane_s: (index) => [byte`\xfd\x18`, index],
-//     /**
-//      * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
-//      * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
-//      */
-//     extract_lane_u: (index) => [byte`\xfd\x19`, index],
-//     /**
-//      * Replaces a specific lane in a 128-bit vector with a new value.
-//      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-//      */
-//     replace_lane: (index) => [byte`\xfd\x1a`, index],
-//     /**
-//      * Compares two 128-bit vectors for equality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
-//      */
-//     eq: byte`\xfd\x2d`,
-//     /**
-//      * Compares two 128-bit vectors for inequality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
-//      */
-//     ne: byte`\xfd\x2e`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
-//      */
-//     lt_s: byte`\xfd\x2f`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
-//      */
-//     lt_u: byte`\xfd\x30`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
-//      */
-//     gt_s: byte`\xfd\x31`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
-//      */
-//     gt_u: byte`\xfd\x32`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
-//      */
-//     le_s: byte`\xfd\x33`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
-//      */
-//     le_u: byte`\xfd\x34`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
-//      */
-//     ge_s: byte`\xfd\x35`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
-//      */
-//     ge_u: byte`\xfd\x36`,
-//     /**
-//      * Adds adjacent pairs of lanes in an `i8x16` vector using signed addition, producing an `i16x8` vector.
-//      * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-//      */
-//     extadd_pairwise_i8x16_s: byte`\xfd\x7c`,
-//     /**
-//      * Adds adjacent pairs of lanes in an `i8x16` vector using unsigned addition, producing an `i16x8` vector.
-//      * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-//      */
-//     extadd_pairwise_i8x16_u: byte`\xfd\x7d`,
-//     /**
-//      * Adds adjacent pairs of lanes in an `i16x8` vector using signed addition, producing an `i32x4` vector.
-//      * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-//      */
-//     extadd_pairwise_i16x8_s: byte`\xfd\x7e`,
-//     /**
-//      * Adds adjacent pairs of lanes in an `i16x8` vector using unsigned addition, producing an `i32x4` vector.
-//      * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-//      */
-//     extadd_pairwise_i16x8_u: byte`\xfd\x7f`,
-//     /**
-//      * Computes the absolute value of each lane in an `i16x8` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-//      */
-//     abs: byte`\xfd\x80\x01`,
-//     /**
-//      * Negates each lane in an `i16x8` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-//      */
-//     neg: byte`\xfd\x81\x01`,
-//     /**
-//      * Performs a signed Q15 multiplication with rounding and saturation on each lane of two `i16x8` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is `(a * b + 0x4000) >> 15`, saturated to the range of `i16`.
-//      */
-//     q15mulr_sat_s: byte`\xfd\x82\x01`,
-//     /**
-//      * Checks if all lanes in an `i16x8` vector are non-zero.
-//      * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-//      */
-//     all_true: byte`\xfd\x83\x01`,
-//     /**
-//      * Creates a bitmask from an `i16x8` vector.
-//      * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-//      */
-//     bitmask: byte`\xfd\x84\x01`,
-//     /**
-//      * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
-//      * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `i16`.
-//      */
-//     narrow_i32x4_s: byte`\xfd\x85\x01`,
-//     /**
-//      * Narrows an `i32x4` vector to an `i16x8` vector using unsigned saturation.
-//      * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `u16`.
-//      */
-//     narrow_i32x4_u: byte`\xfd\x86\x01`,
-//     /**
-//      * Extends the low 8 lanes of an `i8x16` vector to 16 bits using signed extension.
-//      * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
-//      */
-//     extend_low_i8x16_s: byte`\xfd\x87\x01`,
-//     /**
-//      * Extends the high 8 lanes of an `i8x16` vector to 16 bits using signed extension.
-//      * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
-//      */
-//     extend_high_i8x16_s: byte`\xfd\x88\x01`,
-//     /**
-//      * Extends the low 8 lanes of an `i8x16` vector to 16 bits using zero extension.
-//      * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
-//      */
-//     extend_low_i8x16_u: byte`\xfd\x89\x01`,
-//     /**
-//      * Extends the high 8 lanes of an `i8x16` vector to 16 bits using zero extension.
-//      * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
-//      */
-//     extend_high_i8x16_u: byte`\xfd\x8a\x01`,
-//     /**
-//      * Performs a bitwise left shift on each lane of an `i16x8` vector.
-//      * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-//      */
-//     shl: byte`\xfd\x8b\x01`,
-//     /**
-//      * Performs an arithmetic right shift on each lane of an `i16x8` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-//      */
-//     shr_s: byte`\xfd\x8c\x01`,
-//     /**
-//      * Performs a logical right shift on each lane of an `i16x8` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-//      */
-//     shr_u: byte`\xfd\x8d\x01`,
-//     /**
-//      * Adds corresponding lanes of two `i16x8` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-//      */
-//     add: byte`\xfd\x8e\x01`,
-//     /**
-//      * Adds corresponding lanes of two `i16x8` vectors using signed saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
-//      */
-//     add_sat_s: byte`\xfd\x8f\x01`,
-//     /**
-//      * Adds corresponding lanes of two `i16x8` vectors using unsigned saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
-//      */
-//     add_sat_u: byte`\xfd\x90\x01`,
-//     /**
-//      * Subtracts corresponding lanes of two `i16x8` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-//      */
-//     sub: byte`\xfd\x91\x01`,
-//     /**
-//      * Subtracts corresponding lanes of two `i16x8` vectors using signed saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
-//      */
-//     sub_sat_s: byte`\xfd\x92\x01`,
-//     /**
-//      * Subtracts corresponding lanes of two `i16x8` vectors using unsigned saturation.
-//      * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
-//      */
-//     sub_sat_u: byte`\xfd\x93\x01`,
-//     /**
-//      * Multiplies corresponding lanes of two `i16x8` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
-//      */
-//     mul: byte`\xfd\x95\x01`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i16x8` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_s: byte`\xfd\x96\x01`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_u: byte`\xfd\x97\x01`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i16x8` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_s: byte`\xfd\x98\x01`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_u: byte`\xfd\x99\x01`,
-//     /**
-//      * Computes the unsigned average (rounded) of corresponding lanes of two `i16x8` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
-//      */
-//     avgr_u: byte`\xfd\x9b\x01`,
-//     /**
-//      * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
-//      * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
-//      */
-//     extmul_low_i8x16_s: byte`\xfd\x9c\x01`,
-//     /**
-//      * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
-//      * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
-//      */
-//     extmul_high_i8x16_s: byte`\xfd\x9d\x01`,
-//     /**
-//      * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
-//      * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
-//      */
-//     extmul_low_i8x16_u: byte`\xfd\x9e\x01`,
-//     /**
-//      * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
-//      * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
-//      */
-//     extmul_high_i8x16_u: byte`\xfd\x9f\x01`,
-//     /**
-//      * Pushes a 128-bit constant vector onto the stack.
-//      * The immediate value is encoded as a vector of 8 16-bit values.
-//      */
-//     const: (...vals) => (console.assert(vals.length === 8), [byte`\xfd\x0c`, encode_v128(vals)]),
-//   },
-//   I32x4: {
-//     /**
-//      * Creates a 128-bit vector by replicating a 32-bit integer across all lanes.
-//      * Pops 1 value and splats it across all 4 lanes of the vector.
-//      */
-//     splat: byte`\xfd\x11`,
-//     /**
-//      * Extracts a 32-bit integer from a specific lane of a 128-bit vector.
-//      * Pops a vector and pushes the extracted lane value as an i32.
-//      */
-//     extract_lane: (index) => [byte`\xfd\x1b`, index],
-//     /**
-//      * Replaces a specific lane in a 128-bit vector with a new value.
-//      * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-//      */
-//     replace_lane: (index) => [byte`\xfd\x1c`, index],
-//     /**
-//      * Compares two 128-bit vectors for equality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
-//      */
-//     eq: byte`\xfd\x37`,
-//     /**
-//      * Compares two 128-bit vectors for inequality (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if not equal, or `0x00000000` otherwise.
-//      */
-//     ne: byte`\xfd\x38`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
-//      */
-//     lt_s: byte`\xfd\x39`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
-//      */
-//     lt_u: byte`\xfd\x3a`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
-//      */
-//     gt_s: byte`\xfd\x3b`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
-//      */
-//     gt_u: byte`\xfd\x3c`,
-//     /**
-//      * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
-//      */
-//     le_s: byte`\xfd\x3d`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
-//      */
-//     le_u: byte`\xfd\x3e`,
-//     /**
-//      * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
-//      */
-//     ge_s: byte`\xfd\x3f`,
-//     /**
-//      * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-//      * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
-//      */
-//     ge_u: byte`\xfd\x40`,
-//     /**
-//      * Computes the absolute value of each lane in an `i32x4` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-//      */
-//     abs: byte`\xfd\xa0\x01`,
-//     /**
-//      * Negates each lane in an `i32x4` vector.
-//      * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-//      */
-//     neg: byte`\xfd\xa1\x01`,
-//     /**
-//      * Checks if all lanes in an `i32x4` vector are non-zero.
-//      * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-//      */
-//     all_true: byte`\xfd\xa3\x01`,
-//     /**
-//      * Creates a bitmask from an `i32x4` vector.
-//      * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-//      */
-//     bitmask: byte`\xfd\xa4\x01`,
-//     /**
-//      * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
-//      * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
-//      */
-//     extend_low_i16x8_s: byte`\xfd\xa7\x01`,
-//     /**
-//      * Extends the high 4 lanes of an `i16x8` vector to 32 bits using signed extension.
-//      * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
-//      */
-//     extend_high_i16x8_s: byte`\xfd\xa8\x01`,
-//     /**
-//      * Extends the low 4 lanes of an `i16x8` vector to 32 bits using zero extension.
-//      * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
-//      */
-//     extend_low_i16x8_u: byte`\xfd\xa9\x01`,
-//     /**
-//      * Extends the high 4 lanes of an `i16x8` vector to 32 bits using zero extension.
-//      * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
-//      */
-//     extend_high_i16x8_u: byte`\xfd\xaa\x01`,
-//     /**
-//      * Performs a bitwise left shift on each lane of an `i32x4` vector.
-//      * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-//      */
-//     shl: byte`\xfd\xab\x01`,
-//     /**
-//      * Performs an arithmetic right shift on each lane of an `i32x4` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-//      */
-//     shr_s: byte`\xfd\xac\x01`,
-//     /**
-//      * Performs a logical right shift on each lane of an `i32x4` vector.
-//      * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-//      */
-//     shr_u: byte`\xfd\xad\x01`,
-//     /**
-//      * Adds corresponding lanes of two `i32x4` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-//      */
-//     add: byte`\xfd\xae\x01`,
-//     /**
-//      * Subtracts corresponding lanes of two `i32x4` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-//      */
-//     sub: byte`\xfd\xb1\x01`,
-//     /**
-//      * Multiplies corresponding lanes of two `i32x4` vectors.
-//      * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
-//      */
-//     mul: byte`\xfd\xb5\x01`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i32x4` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_s: byte`\xfd\xb6\x01`,
-//     /**
-//      * Computes the minimum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-//      */
-//     min_u: byte`\xfd\xb7\x01`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i32x4` vectors using signed comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_s: byte`\xfd\xb8\x01`,
-//     /**
-//      * Computes the maximum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
-//      * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-//      */
-//     max_u: byte`\xfd\xb9\x01`,
-//     /**
-//      * Computes the dot product of two `i16x8` vectors, producing an `i32x4` vector.
-//      * Pops two vectors, computes the dot product of adjacent pairs of lanes, and pushes the result as an `i32x4` vector.
-//      */
-//     dot_i16x8_s: byte`\xfd\xba\x01`,
-//     /**
-//      * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
-//      * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
-//      */
-//     extmul_low_i16x8_s: byte`\xfd\xbb\x01`,
-//     /**
-//      * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
-//      * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
-//      */
-//     extmul_high_i16x8_s: byte`\xfd\xbc\x01`,
-//     /**
-//      * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
-//      * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
-//      */
-//     extmul_low_i16x8_u: byte`\xfd\xbd\x01`,
-//     /**
-//      * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
-//      * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
-//      */
-//     extmul_high_i16x8_u: byte`\xfd\xbe\x01`,
-//     /**
-//      * Converts each lane of an `f32x4` vector to a signed `i32x4` vector using saturation.
-//      * Pops one vector and pushes a new vector where each lane is truncated to `i32` with saturation if the result exceeds the range of `i32`.
-//      */
-//     trunc_sat_f32x4_s: byte`\xfd\xf8\x01`,
-//     /**
-//      * Converts each lane of an `f32x4` vector to an unsigned `i32x4` vector using saturation.
-//      * Pops one vector and pushes a new vector where each lane is truncated to `u32` with saturation if the result exceeds the range of `u32`.
-//      */
-//     trunc_sat_f32x4_u: byte`\xfd\xf9\x01`,
-//     /**
-//      * Converts the low two lanes of an `f64x2` vector to a signed `i32x4` vector using saturation.
-//      * Pops one vector and pushes a new vector where the low two lanes are truncated to `i32` with saturation, and the high two lanes are zeroed.
-//      */
-//     trunc_sat_f64x2_s_zero: byte`\xfd\xfc\x01`,
-//     /**
-//      * Converts the low two lanes of an `f64x2` vector to an unsigned `i32x4` vector using saturation.
-//      * Pops one vector and pushes a new vector where the low two lanes are truncated to `u32` with saturation, and the high two lanes are zeroed.
-//      */
-//     trunc_sat_f64x2_u_zero: byte`\xfd\xfd\x01`,
-//     /**
-//      * Pushes a 128-bit constant vector onto the stack.
-//      * The immediate value is encoded as a vector of 4 32-bit values.
-//      */
-//     const: (...vals) => (console.assert(vals.length === 4), [byte`\xfd\x0c`, encode_v128(vals)]),
 //   },
 //   I64x2: {
 //     /**
