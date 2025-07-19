@@ -63,7 +63,7 @@ const app = W.App.init()
  * i32{5} // x, a, b are already known
  * i32{"i32_add", 5, x} // so, 'l' + 'r'
  * i32{"i32_add", -45, x} // addition/subtraction can be performed in any order, so we sub from any known number.
- * 
+ *
  * If I were to do it like that, the need for scope is almost mitigated
  *
  * let's create something harder (a square function that only uses adds)
@@ -75,7 +75,7 @@ const app = W.App.init()
  *   z._ = z._.add(x)
  * })
  * return z._
- * 
+ *
  * what is '_' u ask? it's actually well hidden .set() and .load()
  * why use .set() and .load()?
  * because it's exactly like ref/deref in other low level languages
@@ -106,20 +106,22 @@ const app = W.App.init()
  */
 const add_100 = app.function((x = W.I32.param("x")) => {
   W.I32.const(50)
-  return x._.add(50).add();
-}).export("add_100");
+  return x._.add(50).add()
+}).export("add_100")
 
 // this approach also allows caching! (TODO)
 const factorial = app.function((n = W.I64.param("n")) => {
   const acc = W.I64.local("acc").set(1)
 
-  W.block(() => W.loop(() => {
-    W.br_if(1, n._.eq(0))
-    
-    acc._ = acc._.mul(n._)
-    n._ = n._.sub(1)
-    W.br(0)
-  }))
+  W.block(() =>
+    W.loop(() => {
+      W.br_if(1, n._.eq(0))
+
+      acc._ = acc._.mul(n._)
+      n._ = n._.sub(1)
+      W.br(0)
+    })
+  )
 
   return acc._
 }).export("factorial")

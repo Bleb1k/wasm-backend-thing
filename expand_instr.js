@@ -1,38 +1,42 @@
-import { byte } from "./helpers.js";
-import { encode_v128, encodeIEEE754, encodeLEB128 } from "./lib.js";
+import { byte } from "./helpers.js"
+import { encode_v128, encodeIEEE754, encodeLEB128 } from "./lib.js"
 
 export class InstrArray extends Array {
   static bytes(val = null) {
-    console.log(
-      "bytes",
-      val,
-      ["number", "bigint"].includes(typeof val),
-      JSON.stringify(this.const(val)), // [0]
-    )
-    if (["number", "bigint"].includes(typeof val))
+    // console.log(
+    //   "bytes",
+    //   val,
+    //   ["number", "bigint"].includes(typeof val) ? JSON.stringify(this.const(val)) : JSON.stringify(val),
+    // )
+    if (["number", "bigint"].includes(typeof val)) {
       return this.const(val)[0]
+    }
     if (val instanceof Array) {
       return val
     }
-    if (typeof val === "object" && val?.prototype?.bytes !== undefined)
+    if (typeof val === "object" && val?.prototype?.bytes !== undefined) {
       return val.prototype.bytes(val)
+    }
     console.error(`Unknown value`, val)
     throw "Can't generate bytes"
   }
   static from(val) {
-    return this.push(...val)
+    const self = new this()
+    self.push(...val)
+    return self
   }
 }
 
-/** @type {I32_} */class I32_ extends InstrArray {
+/** @type {I32_} */ class I32_ extends InstrArray {
   /**
    * Loads an i32 value from linear memory at the address popped from the stack.
    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
    * Requires alignment byte and offset byte right after.
    */
   load(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x28`, [2, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -42,8 +46,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   load8_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x2c`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -53,8 +58,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   load8_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x2d`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -64,8 +70,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   load16_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x2e`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -75,8 +82,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   load16_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x2f`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -86,8 +94,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   store(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\x36`, [2, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -97,8 +106,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   store8(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\x3a`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -108,8 +118,9 @@ export class InstrArray extends Array {
    * Requires alignment byte and offset byte right after.
    */
   store16(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\x3b`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -134,8 +145,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if equal, else 0.
    */
   eq(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x46`)
     return this
   }
@@ -144,8 +156,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if not equal, else 0.
    */
   ne(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x47`)
     return this
   }
@@ -154,8 +167,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a < b) signed, else 0.
    */
   lt_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x48`)
     return this
   }
@@ -164,8 +178,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a < b) unsigned, else 0.
    */
   lt_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x49`)
     return this
   }
@@ -174,8 +189,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a > b) signed, else 0.
    */
   gt_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4a`)
     return this
   }
@@ -184,8 +200,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a > b) unsigned, else 0.
    */
   gt_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4b`)
     return this
   }
@@ -194,8 +211,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0.
    */
   le_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4c`)
     return this
   }
@@ -204,8 +222,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0.
    */
   le_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4d`)
     return this
   }
@@ -214,8 +233,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0.
    */
   ge_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4e`)
     return this
   }
@@ -224,8 +244,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
    */
   ge_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x4f`)
     return this
   }
@@ -258,8 +279,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a + b) as i32 (wraps on overflow).
    */
   add(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6a`)
     return this
   }
@@ -268,8 +290,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a - b) as i32 (wraps on overflow).
    */
   sub(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6b`)
     return this
   }
@@ -278,8 +301,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a * b) as i32 (wraps on overflow).
    */
   mul(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6c`)
     return this
   }
@@ -289,8 +313,9 @@ export class InstrArray extends Array {
    * Traps if b = 0 or division overflows (e.g., INT32_MIN / -1).
    */
   div_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6d`)
     return this
   }
@@ -300,8 +325,9 @@ export class InstrArray extends Array {
    * Traps if b = 0.
    */
   div_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6e`)
     return this
   }
@@ -311,8 +337,9 @@ export class InstrArray extends Array {
    * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
    */
   rem_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x6f`)
     return this
   }
@@ -322,8 +349,9 @@ export class InstrArray extends Array {
    * Traps if b = 0.
    */
   rem_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x70`)
     return this
   }
@@ -332,8 +360,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a & b) as i32.
    */
   and(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x71`)
     return this
   }
@@ -342,8 +371,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a | b) as i32.
    */
   or(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x72`)
     return this
   }
@@ -352,8 +382,9 @@ export class InstrArray extends Array {
    * Pops 2 values, pushes (a ^ b) as i32.
    */
   xor(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x73`)
     return this
   }
@@ -362,8 +393,9 @@ export class InstrArray extends Array {
    * Pops 2 values (a, b), pushes (a << (b % 32)) as i32.
    */
   shl(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x74`)
     return this
   }
@@ -372,8 +404,9 @@ export class InstrArray extends Array {
    * Pops 2 values (a, b), pushes (a >> (b % 32)) as i32.
    */
   shr_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x75`)
     return this
   }
@@ -382,8 +415,9 @@ export class InstrArray extends Array {
    * Pops 2 values (a, b), pushes (a >>> (b % 32)) as i32.
    */
   shr_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x76`)
     return this
   }
@@ -392,8 +426,9 @@ export class InstrArray extends Array {
    * Pops 2 values (a, b), rotates bits left by (b % 32) positions.
    */
   rotl(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x77`)
     return this
   }
@@ -402,8 +437,9 @@ export class InstrArray extends Array {
    * Pops 2 values (a, b), rotates bits right by (b % 32) positions.
    */
   rotr(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\x78`)
     return this
   }
@@ -518,7 +554,7 @@ export class InstrArray extends Array {
    */
   to_i64_extend() {
     this.push(byte`\xac`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Zero-extends i32 to i64.
@@ -527,7 +563,7 @@ export class InstrArray extends Array {
    */
   to_u64_extend() {
     this.push(byte`\xad`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Converts signed i32 to f32.
@@ -537,7 +573,7 @@ export class InstrArray extends Array {
    */
   to_f32_convert_s() {
     this.push(byte`\xb2`)
-    return F32.from(this)
+    return F32_.from(this)
   }
   /**
    * Converts unsigned i32 to f32.
@@ -547,7 +583,7 @@ export class InstrArray extends Array {
    */
   to_f32_convert_u() {
     this.push(byte`\xb3`)
-    return F32.from(this)
+    return F32_.from(this)
   }
   /**
    * Reinterprets i32 bits as f32 (bitwise copy).
@@ -555,7 +591,7 @@ export class InstrArray extends Array {
    */
   as_f32() {
     this.push(byte`\xbe`)
-    return F32.from(this)
+    return F32_.from(this)
   }
   /**
    * Converts signed i32 to f64.
@@ -565,7 +601,7 @@ export class InstrArray extends Array {
    */
   to_f64_convert_s() {
     this.push(byte`\xb7`)
-    return F64.from(this)
+    return F64_.from(this)
   }
   /**
    * Converts unsigned i32 to f64.
@@ -575,16 +611,15 @@ export class InstrArray extends Array {
    */
   to_f64_convert_u() {
     this.push(byte`\xb8`)
-    return F64.from(this)
+    return F64_.from(this)
   }
 }
 /** @type {I32_} */
 export const I32 = new Proxy(I32_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
-    const tmp = new a()
-    return (..._) => (tmp[b](..._), tmp)
-  }
+    return (..._) => (new a())[b](..._)
+  },
 })
 
 class I64_ extends InstrArray {
@@ -594,8 +629,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x29`, [2, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -605,8 +641,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load8_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x30`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -616,8 +653,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load8_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x31`, [0, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -627,8 +665,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load16_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x32`, [1, ...encodeLEB128("u32", offset)]])
     return this
   }
@@ -638,8 +677,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load16_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x33`, [1, encodeLEB128("u32", offset)]])
     return this
   }
@@ -649,8 +689,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load32_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x34`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -660,8 +701,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load32_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x35`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -671,8 +713,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x37`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -682,8 +725,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store8(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x3c`, [0, encodeLEB128("u32", offset)]])
     return this
   }
@@ -693,8 +737,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store16(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x3d`, [1, encodeLEB128("u32", offset)]])
     return this
   }
@@ -704,8 +749,9 @@ class I64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store32(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x3e`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -730,8 +776,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if equal, else 0 as i32.
    */
   eq(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x51`)
     return this
   }
@@ -740,8 +787,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if not equal, else 0 as i32.
    */
   ne(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x52`)
     return this
   }
@@ -750,8 +798,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a < b) signed, else 0 as i32.
    */
   lt_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x53`)
     return this
   }
@@ -760,8 +809,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a < b) unsigned, else 0 as i32.
    */
   lt_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x54`)
     return this
   }
@@ -770,8 +820,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a > b) signed, else 0 as i32.
    */
   gt_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x55`)
     return this
   }
@@ -780,8 +831,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a > b) unsigned, else 0 as i32.
    */
   gt_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x56`)
     return this
   }
@@ -790,8 +842,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0 as i32.
    */
   le_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x57`)
     return this
   }
@@ -800,8 +853,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0 as i32.
    */
   le_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x58`)
     return this
   }
@@ -810,8 +864,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0 as i32.
    */
   ge_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x59`)
     return this
   }
@@ -820,8 +875,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0 as i32.
    */
   ge_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x5a`)
     return this
   }
@@ -854,8 +910,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a + b) as i64 (wraps on overflow).
    */
   add(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x7c`)
     return this
   }
@@ -864,8 +921,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a - b) as i64 (wraps on overflow).
    */
   sub(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x7d`)
     return this
   }
@@ -874,8 +932,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a * b) as i64 (wraps on overflow).
    */
   mul(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x7e`)
     return this
   }
@@ -885,8 +944,9 @@ class I64_ extends InstrArray {
    * Traps if b = 0 or division overflows (e.g., INT64_MIN / -1).
    */
   div_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x7f`)
     return this
   }
@@ -896,8 +956,9 @@ class I64_ extends InstrArray {
    * Traps if b = 0.
    */
   div_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x80`)
     return this
   }
@@ -907,8 +968,9 @@ class I64_ extends InstrArray {
    * Traps if b = 0 or division overflows.
    */
   rem_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x81`)
     return this
   }
@@ -918,8 +980,9 @@ class I64_ extends InstrArray {
    * Traps if b = 0.
    */
   rem_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x82`)
     return this
   }
@@ -928,8 +991,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a & b) as i64.
    */
   and(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x83`)
     return this
   }
@@ -938,8 +1002,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a | b) as i64.
    */
   or(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x84`)
     return this
   }
@@ -948,8 +1013,9 @@ class I64_ extends InstrArray {
    * Pops 2 values, pushes (a ^ b) as i64.
    */
   xor(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x85`)
     return this
   }
@@ -958,8 +1024,9 @@ class I64_ extends InstrArray {
    * Pops 2 values (a, b), pushes (a << (b % 64)) as i64.
    */
   shl(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x86`)
     return this
   }
@@ -968,8 +1035,9 @@ class I64_ extends InstrArray {
    * Pops 2 values (a, b), pushes (a >> (b % 64)) as i64.
    */
   shr_s(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x87`)
     return this
   }
@@ -978,8 +1046,9 @@ class I64_ extends InstrArray {
    * Pops 2 values (a, b), pushes (a >>> (b % 64)) as i64.
    */
   shr_u(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x88`)
     return this
   }
@@ -988,8 +1057,9 @@ class I64_ extends InstrArray {
    * Pops 2 values (a, b), rotates bits left by (b % 64) positions.
    */
   rotl(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x89`)
     return this
   }
@@ -998,8 +1068,9 @@ class I64_ extends InstrArray {
    * Pops 2 values (a, b), rotates bits right by (b % 64) positions.
    */
   rotr(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(I64.bytes(val))
+    }
     this.push(byte`\x8a`)
     return this
   }
@@ -1130,7 +1201,7 @@ class I64_ extends InstrArray {
    */
   to_i32_wrap() {
     this.push(byte`\xa7`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Converts signed i64 to f32.
@@ -1140,7 +1211,7 @@ class I64_ extends InstrArray {
    */
   to_f32_convert_s() {
     this.push(byte`\xb4`)
-    return F32.from(this)
+    return F32_.from(this)
   }
   /**
    * Converts unsigned i64 to f32.
@@ -1150,7 +1221,7 @@ class I64_ extends InstrArray {
    */
   to_f32_convert_u() {
     this.push(byte`\xb5`)
-    return F32.from(this)
+    return F32_.from(this)
   }
   /**
    * Converts signed i64 to f64.
@@ -1160,7 +1231,7 @@ class I64_ extends InstrArray {
    */
   to_f64_convert_s() {
     this.push(byte`\xb9`)
-    return F64.from(this)
+    return F64_.from(this)
   }
   /**
    * Reinterprets i64 bits as f64 (bitwise copy).
@@ -1168,7 +1239,7 @@ class I64_ extends InstrArray {
    */
   as_f64() {
     this.push(byte`\xbf`)
-    return F64.from(this)
+    return F64_.from(this)
   }
   /**
    * Converts unsigned i64 to f64.
@@ -1178,7 +1249,7 @@ class I64_ extends InstrArray {
    */
   to_f64_convert_u() {
     this.push(byte`\xba`)
-    return F64.from(this)
+    return F64_.from(this)
   }
   /**
    * Reinterprets i64 bits as f64 (bitwise copy).
@@ -1186,16 +1257,15 @@ class I64_ extends InstrArray {
    */
   as_f64() {
     this.push(byte`\xbf`)
-    return F64.from(this)
+    return F64_.from(this)
   }
 }
 /** @type {I64_} */
 export const I64 = new Proxy(I64_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
-    const tmp = new a()
-    return (..._) => /** @type {I64_} */(tmp[b](..._), tmp)
-  }
+    return (..._) => (new a())[b](..._)
+  },
 })
 
 class F32_ extends InstrArray {
@@ -1205,8 +1275,9 @@ class F32_ extends InstrArray {
    *   equires alignment byte and offset byte right after.
    */
   load(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x2a`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -1216,8 +1287,9 @@ class F32_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\x38`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -1235,8 +1307,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   eq(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x5b`)
     return this
   }
@@ -1246,8 +1319,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 1).
    */
   ne(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x5c`)
     return this
   }
@@ -1257,8 +1331,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   lt(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x5d`)
     return this
   }
@@ -1268,8 +1343,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   gt(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x5e`)
     return this
   }
@@ -1279,8 +1355,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   le(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x5f`)
     return this
   }
@@ -1290,8 +1367,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   ge(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x60`)
     return this
   }
@@ -1359,8 +1437,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   add(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x92`)
     return this
   }
@@ -1370,8 +1449,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   sub(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x93`)
     return this
   }
@@ -1381,8 +1461,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   mul(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x94`)
     return this
   }
@@ -1392,8 +1473,9 @@ class F32_ extends InstrArray {
    * Follows IEEE 754 rules (NaN/±infinity handling).
    */
   div(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x95`)
     return this
   }
@@ -1403,8 +1485,9 @@ class F32_ extends InstrArray {
    * Handles NaN and -0/+0 correctly per IEEE 754.
    */
   min(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x96`)
     return this
   }
@@ -1414,8 +1497,9 @@ class F32_ extends InstrArray {
    * Handles NaN and -0/+0 correctly per IEEE 754.
    */
   max(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x97`)
     return this
   }
@@ -1424,8 +1508,9 @@ class F32_ extends InstrArray {
    * Pops 2 values, pushes (|a| with b's sign) as f32.
    */
   copysign(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F32.bytes(val))
+    }
     this.push(byte`\x98`)
     return this
   }
@@ -1490,7 +1575,7 @@ class F32_ extends InstrArray {
    */
   to_i32_trunc() {
     this.push(byte`\xa8`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Truncates f32 to unsigned i32.
@@ -1500,7 +1585,7 @@ class F32_ extends InstrArray {
    */
   to_u32_trunc() {
     this.push(byte`\xa9`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Reinterprets f32 bits as i32 (bitwise copy).
@@ -1508,7 +1593,7 @@ class F32_ extends InstrArray {
    */
   as_i32() {
     this.push(byte`\xbc`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Saturating truncation of f32 to signed i32.
@@ -1518,7 +1603,7 @@ class F32_ extends InstrArray {
    */
   to_i32_trunc_sat() {
     this.push(byte`\xfc\x00`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Saturating truncation of f32 to unsigned i32.
@@ -1528,7 +1613,7 @@ class F32_ extends InstrArray {
    */
   to_u32_trunc_sat() {
     this.push(byte`\xfc\x01`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Truncates f32 to signed i64.
@@ -1538,7 +1623,7 @@ class F32_ extends InstrArray {
    */
   to_i64_trunc() {
     this.push(byte`\xae`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Truncates f32 to unsigned i64.
@@ -1548,7 +1633,7 @@ class F32_ extends InstrArray {
    */
   to_u64_trunc() {
     this.push(byte`\xaf`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Saturating truncation of f32 to signed i64.
@@ -1558,7 +1643,7 @@ class F32_ extends InstrArray {
    */
   to_i64_trunc_sat() {
     this.push(byte`\xfc\x04`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Saturating truncation of f32 to unsigned i64.
@@ -1568,7 +1653,7 @@ class F32_ extends InstrArray {
    */
   to_u64_trunc_sat() {
     this.push(byte`\xfc\x05`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Promotes f32 to_ f64 (exact conversion).
@@ -1577,16 +1662,15 @@ class F32_ extends InstrArray {
    */
   to_f64() {
     this.push(byte`\xbb`)
-    return F64.from(this)
+    return F64_.from(this)
   }
 }
 /** @type {F32_} */
 export const F32 = new Proxy(F32_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
-    const tmp = new a()
-    return (..._) => (tmp[b](..._), tmp)
-  }
+    return (..._) => (new a())[b](..._)
+  },
 })
 
 class F64_ extends InstrArray {
@@ -1596,8 +1680,9 @@ class F64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   load(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(F64.bytes(ptr))
+    }
     this.push([byte`\x2b`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -1607,8 +1692,9 @@ class F64_ extends InstrArray {
    * Requires alignment byte and offset byte right after.
    */
   store(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(F64.bytes(ptr))
+    }
     this.push([byte`\x39`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -1626,8 +1712,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   eq(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x61`)
     return this
   }
@@ -1637,8 +1724,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 1).
    */
   ne(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x62`)
     return this
   }
@@ -1648,8 +1736,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   lt(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x63`)
     return this
   }
@@ -1659,8 +1748,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   gt(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x64`)
     return this
   }
@@ -1670,8 +1760,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   le(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x65`)
     return this
   }
@@ -1681,8 +1772,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN returns 0).
    */
   ge(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\x66`)
     return this
   }
@@ -1750,8 +1842,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   add(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa0`)
     return this
   }
@@ -1761,8 +1854,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   sub(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa1`)
     return this
   }
@@ -1772,8 +1866,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN propagation).
    */
   mul(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa2`)
     return this
   }
@@ -1783,8 +1878,9 @@ class F64_ extends InstrArray {
    * Follows IEEE 754 rules (NaN/±infinity handling).
    */
   div(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa3`)
     return this
   }
@@ -1794,8 +1890,9 @@ class F64_ extends InstrArray {
    * Handles NaN and -0/+0 correctly per IEEE 754.
    */
   min(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa4`)
     return this
   }
@@ -1805,8 +1902,9 @@ class F64_ extends InstrArray {
    * Handles NaN and -0/+0 correctly per IEEE 754.
    */
   max(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa5`)
     return this
   }
@@ -1815,8 +1913,9 @@ class F64_ extends InstrArray {
    * Pops 2 values, pushes (|a| with b's sign) as f64.
    */
   copysign(val = null) {
-    if (val !== null)
+    if (val !== null) {
       this.push(F64.bytes(val))
+    }
     this.push(byte`\xa6`)
     return this
   }
@@ -1880,7 +1979,7 @@ class F64_ extends InstrArray {
    */
   to_i32_trunc() {
     this.push(byte`\xaa`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Truncates f64 to unsigned i32.
@@ -1890,7 +1989,7 @@ class F64_ extends InstrArray {
    */
   to_u32_trunc() {
     this.push(byte`\xab`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Saturating truncation of f64 to signed i32.
@@ -1900,7 +1999,7 @@ class F64_ extends InstrArray {
    */
   to_i32_trunc_sat() {
     this.push(byte`\xfc\x02`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Saturating truncation of f64 to unsigned i32.
@@ -1910,7 +2009,7 @@ class F64_ extends InstrArray {
    */
   to_u32_trunc_sat() {
     this.push(byte`\xfc\x03`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Truncates f64 to signed i64.
@@ -1920,7 +2019,7 @@ class F64_ extends InstrArray {
    */
   to_i64_trunc() {
     this.push(byte`\xb0`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Truncates f64 to unsigned i64.
@@ -1930,7 +2029,7 @@ class F64_ extends InstrArray {
    */
   to_u64_trunc() {
     this.push(byte`\xb1`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Reinterprets f64 bits as i64 (bitwise copy).
@@ -1938,7 +2037,7 @@ class F64_ extends InstrArray {
    */
   as_i64() {
     this.push(byte`\xbd`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Saturating truncation of f64 to signed i64.
@@ -1948,7 +2047,7 @@ class F64_ extends InstrArray {
    */
   to_i64_trunc_sat() {
     this.push(byte`\xfc\x06`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Saturating truncation of f64 to unsigned i64.
@@ -1958,7 +2057,7 @@ class F64_ extends InstrArray {
    */
   to_u64_trunc_sat() {
     this.push(byte`\xfc\x07`)
-    return I64.from(this)
+    return I64_.from(this)
   }
   /**
    * Demotes f64 to f32 (loses precision).
@@ -1968,16 +2067,15 @@ class F64_ extends InstrArray {
    */
   to_f32() {
     this.push(byte`\xb6`)
-    return F32.from(this)
+    return F32_.from(this)
   }
 }
 /** @type {F64_} */
 export const F64 = new Proxy(F64_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
-    const tmp = new a()
-    return (..._) => (tmp[b](..._), tmp)
-  }
+    return (..._) => (new a())[b](..._)
+  },
 })
 
 class V128_ extends InstrArray {
@@ -1986,8 +2084,9 @@ class V128_ extends InstrArray {
    * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
    */
   load(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x00`, [4, encodeLEB128("u32", offset)]])
     return this
   }
@@ -1996,8 +2095,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load8x8_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x01`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2006,8 +2106,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load8x8_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x02`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2016,8 +2117,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load16x4_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x03`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2026,8 +2128,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load16x4_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x04`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2036,8 +2139,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load32x2_s(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x05`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2046,8 +2150,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load32x2_u(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x06`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2056,8 +2161,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 1-byte alignment.
    */
   load8_splat(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x07`, [0, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2066,8 +2172,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 2-byte alignment.
    */
   load16_splat(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x08`, [1, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2076,8 +2183,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 4-byte alignment.
    */
   load32_splat(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x09`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2086,8 +2194,9 @@ class V128_ extends InstrArray {
    * Pops address from stack. Requires 8-byte alignment.
    */
   load64_splat(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x0a`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2096,8 +2205,9 @@ class V128_ extends InstrArray {
    * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
    */
   store(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.push(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x0b`, [4, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2114,8 +2224,9 @@ class V128_ extends InstrArray {
    * Pops two vectors and pushes the result of `(a & b)`.
    */
   and(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(V128.bytes(val))
+    }
     this.push(byte`\xfd\x4e`)
     return this
   }
@@ -2124,8 +2235,9 @@ class V128_ extends InstrArray {
    * Pops two vectors and pushes the result of `(a & ~b)`.
    */
   andnot(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(V128.bytes(val))
+    }
     this.push(byte`\xfd\x4f`)
     return this
   }
@@ -2134,8 +2246,9 @@ class V128_ extends InstrArray {
    * Pops two vectors and pushes the result of `(a | b)`.
    */
   or(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(V128.bytes(val))
+    }
     this.push(byte`\xfd\x50`)
     return this
   }
@@ -2144,8 +2257,9 @@ class V128_ extends InstrArray {
    * Pops two vectors and pushes the result of `(a ^ b)`.
    */
   xor(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(V128.bytes(val))
+    }
     this.push(byte`\xfd\x51`)
     return this
   }
@@ -2155,12 +2269,15 @@ class V128_ extends InstrArray {
    * For each bit in the mask, selects the corresponding bit from `true_vector` if the mask bit is `1`, otherwise from `false_vector`.
    */
   bitselect(false_vector, true_vector, mask) {
-    if (mask !== undefined)
+    if (mask !== undefined) {
       this.push(V128.bytes(mask))
-    if (true_vector !== undefined)
+    }
+    if (true_vector !== undefined) {
       this.push(V128.bytes(true_vector))
-    if (false_vector !== undefined)
+    }
+    if (false_vector !== undefined) {
       this.push(V128.bytes(false_vector))
+    }
     this.push(byte`\xfd\x52`)
     return this
   }
@@ -2170,15 +2287,16 @@ class V128_ extends InstrArray {
    */
   any_true() {
     this.push(byte`\xfd\x53`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Loads a single byte from memory into a specific lane of a 128-bit vector.
    * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
    */
   load8_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x54`, [0, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2187,8 +2305,9 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
    */
   load16_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x55`, [1, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2197,8 +2316,9 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
    */
   load32_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x56`, [2, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2207,8 +2327,9 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
    */
   load64_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x57`, [3, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2217,9 +2338,10 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, writes the specified lane's byte to memory.
    */
   store8_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
-    this.push([byte`\xfd\x58`, [0 , encodeLEB128("u32", offset), lane]])
+    }
+    this.push([byte`\xfd\x58`, [0, encodeLEB128("u32", offset), lane]])
     return this
   }
   /**
@@ -2227,9 +2349,10 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, writes the specified lane's halfword to memory.
    */
   store16_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
-    this.push([byte`\xfd\x59`, [1 , encodeLEB128("u32", offset), lane]])
+    }
+    this.push([byte`\xfd\x59`, [1, encodeLEB128("u32", offset), lane]])
     return this
   }
   /**
@@ -2237,9 +2360,10 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, writes the specified lane's word to memory.
    */
   store32_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
-    this.push([byte`\xfd\x5a`, [2 , encodeLEB128("u32", offset), lane]])
+    }
+    this.push([byte`\xfd\x5a`, [2, encodeLEB128("u32", offset), lane]])
     return this
   }
   /**
@@ -2247,8 +2371,9 @@ class V128_ extends InstrArray {
    * Pops an address and a vector, writes the specified lane's doubleword to memory.
    */
   store64_lane(lane, ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x5b`, [3, encodeLEB128("u32", offset), lane]])
     return this
   }
@@ -2257,8 +2382,9 @@ class V128_ extends InstrArray {
    * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
    */
   load32_zero(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x5c`, [2, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2267,8 +2393,9 @@ class V128_ extends InstrArray {
    * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
    */
   load64_zero(ptr = null, offset = 0) {
-    if (ptr !== null)
+    if (ptr !== null) {
       this.unshift(I32.bytes(ptr))
+    }
     this.push([byte`\xfd\x5d`, [3, encodeLEB128("u32", offset)]])
     return this
   }
@@ -2285,9 +2412,8 @@ class V128_ extends InstrArray {
 export const V128 = new Proxy(V128_, {
   get: (a, b) => {
     if (typeof a[b] === "function") return a[b]
-    const tmp = new a()
-    return (..._) => (tmp[b](..._), tmp)
-  }
+    return (..._) => (new a())[b](..._)
+  },
 })
 
 class I8x16_ extends InstrArray {
@@ -2305,8 +2431,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
    */
   swizzle(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x0e`)
     return this
   }
@@ -2315,8 +2442,9 @@ class I8x16_ extends InstrArray {
    * Pops 1 value and splats it across all 16 lanes of the vector.
    */
   splat(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x0f`)
     return this
   }
@@ -2327,7 +2455,7 @@ class I8x16_ extends InstrArray {
    */
   extract_lane_s(index) {
     this.push([byte`\xfd\x15`, index])
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
@@ -2336,15 +2464,16 @@ class I8x16_ extends InstrArray {
    */
   extract_lane_u(index) {
     this.push([byte`\xfd\x16`, index])
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
    */
   replace_lane(val, index) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push([byte`\xfd\x17`, index])
     return this
   }
@@ -2353,8 +2482,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
    */
   eq(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x23`)
     return this
   }
@@ -2363,8 +2493,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if not equal, or `0x00` otherwise.
    */
   ne(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x24`)
     return this
   }
@@ -2373,8 +2504,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
    */
   lt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x25`)
     return this
   }
@@ -2383,8 +2515,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
    */
   lt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x26`)
     return this
   }
@@ -2393,8 +2526,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
    */
   gt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x27`)
     return this
   }
@@ -2403,8 +2537,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
    */
   gt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x28`)
     return this
   }
@@ -2413,8 +2548,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
    */
   le_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x29`)
     return this
   }
@@ -2423,8 +2559,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
    */
   le_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x2a`)
     return this
   }
@@ -2433,8 +2570,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
    */
   ge_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x2b`)
     return this
   }
@@ -2443,8 +2581,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
    */
   ge_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x2c`)
     return this
   }
@@ -2493,8 +2632,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
    */
   narrow_i16x8_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x65`)
     return this
   }
@@ -2503,8 +2643,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
    */
   narrow_i16x8_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x66`)
     return this
   }
@@ -2513,8 +2654,9 @@ class I8x16_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
    */
   shl(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x6b`)
     return this
   }
@@ -2523,8 +2665,9 @@ class I8x16_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
    */
   shr_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x6c`)
     return this
   }
@@ -2533,8 +2676,9 @@ class I8x16_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
    */
   shr_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x6d`)
     return this
   }
@@ -2543,8 +2687,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
    */
   add(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x6e`)
     return this
   }
@@ -2553,8 +2698,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
    */
   add_sat_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x6f`)
     return this
   }
@@ -2563,8 +2709,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
    */
   add_sat_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x70`)
     return this
   }
@@ -2573,8 +2720,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
    */
   sub(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x71`)
     return this
   }
@@ -2583,8 +2731,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
    */
   sub_sat_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x72`)
     return this
   }
@@ -2593,8 +2742,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
    */
   sub_sat_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x73`)
     return this
   }
@@ -2603,8 +2753,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x76`)
     return this
   }
@@ -2613,8 +2764,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x77`)
     return this
   }
@@ -2623,8 +2775,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x78`)
     return this
   }
@@ -2633,8 +2786,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x79`)
     return this
   }
@@ -2643,8 +2797,9 @@ class I8x16_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
    */
   avgr_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I8x16.bytes(val))
+    }
     this.push(byte`\xfd\x7b`)
     return this
   }
@@ -2664,7 +2819,7 @@ export const I8x16 = new Proxy(I8x16_, {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
     return (..._) => (tmp[b](..._), tmp)
-  }
+  },
 })
 
 class I16x8_ extends InstrArray {
@@ -2673,8 +2828,9 @@ class I16x8_ extends InstrArray {
    * Pops 1 value and splats it across all 8 lanes of the vector.
    */
   splat(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.const(val, "i17"))
+    }
     this.push(byte`\xfd\x10`)
     return this
   }
@@ -2685,7 +2841,7 @@ class I16x8_ extends InstrArray {
    */
   extract_lane_s(index) {
     this.push([byte`\xfd\x18`, index])
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
@@ -2693,15 +2849,16 @@ class I16x8_ extends InstrArray {
    */
   extract_lane_u(index) {
     this.push([byte`\xfd\x19`, index])
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
    */
   replace_lane(val, index) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(InstrArray.bytes(val))
+    }
     this.push([byte`\xfd\x1a`, index])
     return this
   }
@@ -2710,8 +2867,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
    */
   eq(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x2d`)
     return this
   }
@@ -2720,8 +2878,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
    */
   ne(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x2e`)
     return this
   }
@@ -2730,8 +2889,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
    */
   lt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x2f`)
     return this
   }
@@ -2740,8 +2900,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
    */
   lt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x30`)
     return this
   }
@@ -2750,8 +2911,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
    */
   gt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x31`)
     return this
   }
@@ -2760,8 +2922,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
    */
   gt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x32`)
     return this
   }
@@ -2770,8 +2933,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
    */
   le_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x33`)
     return this
   }
@@ -2780,8 +2944,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
    */
   le_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x34`)
     return this
   }
@@ -2790,8 +2955,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
    */
   ge_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x35`)
     return this
   }
@@ -2800,8 +2966,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
    */
   ge_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x36`)
     return this
   }
@@ -2858,8 +3025,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `(a * b + 0x4000) >> 15`, saturated to the range of `i16`.
    */
   q15mulr_sat_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x82\x01`)
     return this
   }
@@ -2869,7 +3037,7 @@ class I16x8_ extends InstrArray {
    */
   all_true() {
     this.push(byte`\xfd\x83\x01`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Creates a bitmask from an `i16x8` vector.
@@ -2877,15 +3045,16 @@ class I16x8_ extends InstrArray {
    */
   bitmask() {
     this.push(byte`\xfd\x84\x01`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
    * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `i16`.
    */
   narrow_i32x4_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x85\x01`)
     return this
   }
@@ -2894,8 +3063,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `u16`.
    */
   narrow_i32x4_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x86\x01`)
     return this
   }
@@ -2936,8 +3106,9 @@ class I16x8_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
    */
   shl(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x8b\x01`)
     return this
   }
@@ -2946,8 +3117,9 @@ class I16x8_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
    */
   shr_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x8c\x01`)
     return this
   }
@@ -2956,8 +3128,9 @@ class I16x8_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
    */
   shr_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x8d\x01`)
     return this
   }
@@ -2966,8 +3139,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
    */
   add(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x8e\x01`)
     return this
   }
@@ -2976,8 +3150,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
    */
   add_sat_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x8f\x01`)
     return this
   }
@@ -2986,8 +3161,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
    */
   add_sat_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x90\x01`)
     return this
   }
@@ -2996,8 +3172,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
    */
   sub(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x91\x01`)
     return this
   }
@@ -3006,8 +3183,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
    */
   sub_sat_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x92\x01`)
     return this
   }
@@ -3016,8 +3194,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
    */
   sub_sat_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x93\x01`)
     return this
   }
@@ -3026,8 +3205,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
    */
   mul(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x95\x01`)
     return this
   }
@@ -3036,8 +3216,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x96\x01`)
     return this
   }
@@ -3046,8 +3227,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x97\x01`)
     return this
   }
@@ -3056,8 +3238,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x98\x01`)
     return this
   }
@@ -3066,8 +3249,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x99\x01`)
     return this
   }
@@ -3076,8 +3260,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
    */
   avgr_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x9b\x01`)
     return this
   }
@@ -3086,8 +3271,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
    */
   extmul_low_i8x16_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x9c\x01`)
     return this
   }
@@ -3096,8 +3282,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
    */
   extmul_high_i8x16_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x9d\x01`)
     return this
   }
@@ -3106,8 +3293,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
    */
   extmul_low_i8x16_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x9e\x01`)
     return this
   }
@@ -3116,8 +3304,9 @@ class I16x8_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
    */
   extmul_high_i8x16_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I16x8.bytes(val))
+    }
     this.push(byte`\xfd\x9f\x01`)
     return this
   }
@@ -3137,7 +3326,7 @@ export const I16x8 = new Proxy(I16x8_, {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
     return (..._) => (tmp[b](..._), tmp)
-  }
+  },
 })
 
 class I32x4_ extends InstrArray {
@@ -3146,8 +3335,9 @@ class I32x4_ extends InstrArray {
    * Pops 1 value and splats it across all 4 lanes of the vector.
    */
   splat(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32.bytes(val))
+    }
     this.push(byte`\xfd\x11`)
     return this
   }
@@ -3157,15 +3347,16 @@ class I32x4_ extends InstrArray {
    */
   extract_lane(index) {
     this.push([byte`\xfd\x1b`, index])
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Replaces a specific lane in a 128-bit vector with a new value.
    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
    */
   replace_lane(val, index) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(InstrArray.bytes(val))
+    }
     this.push([byte`\xfd\x1c`, index])
     return this
   }
@@ -3174,8 +3365,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
    */
   eq(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x37`)
     return this
   }
@@ -3184,8 +3376,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if not equal, or `0x00000000` otherwise.
    */
   ne(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x38`)
     return this
   }
@@ -3194,8 +3387,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
    */
   lt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x39`)
     return this
   }
@@ -3204,8 +3398,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
    */
   lt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3a`)
     return this
   }
@@ -3214,8 +3409,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
    */
   gt_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3b`)
     return this
   }
@@ -3224,8 +3420,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
    */
   gt_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3c`)
     return this
   }
@@ -3234,8 +3431,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
    */
   le_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3d`)
     return this
   }
@@ -3244,8 +3442,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
    */
   le_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3e`)
     return this
   }
@@ -3254,8 +3453,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
    */
   ge_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x3f`)
     return this
   }
@@ -3264,8 +3464,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
    */
   ge_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\x40`)
     return this
   }
@@ -3291,7 +3492,7 @@ class I32x4_ extends InstrArray {
    */
   all_true() {
     this.push(byte`\xfd\xa3\x01`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Creates a bitmask from an `i32x4` vector.
@@ -3299,7 +3500,7 @@ class I32x4_ extends InstrArray {
    */
   bitmask() {
     this.push(byte`\xfd\xa4\x01`)
-    return I32.from(this)
+    return I32_.from(this)
   }
   /**
    * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
@@ -3338,8 +3539,9 @@ class I32x4_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
    */
   shl(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(InstrArray.bytes(val))
+    }
     this.push(byte`\xfd\xab\x01`)
     return this
   }
@@ -3348,8 +3550,9 @@ class I32x4_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
    */
   shr_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(InstrArray.bytes(val))
+    }
     this.push(byte`\xfd\xac\x01`)
     return this
   }
@@ -3358,8 +3561,9 @@ class I32x4_ extends InstrArray {
    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
    */
   shr_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(InstrArray.bytes(val))
+    }
     this.push(byte`\xfd\xad\x01`)
     return this
   }
@@ -3368,8 +3572,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
    */
   add(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xae\x01`)
     return this
   }
@@ -3378,8 +3583,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
    */
   sub(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb1\x01`)
     return this
   }
@@ -3388,8 +3594,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
    */
   mul(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb5\x01`)
     return this
   }
@@ -3398,8 +3605,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb6\x01`)
     return this
   }
@@ -3408,8 +3616,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
    */
   min_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb7\x01`)
     return this
   }
@@ -3418,8 +3627,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb8\x01`)
     return this
   }
@@ -3428,8 +3638,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
    */
   max_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xb9\x01`)
     return this
   }
@@ -3438,8 +3649,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors, computes the dot product of adjacent pairs of lanes, and pushes the result as an `i32x4` vector.
    */
   dot_i16x8_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xba\x01`)
     return this
   }
@@ -3448,8 +3660,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
    */
   extmul_low_i16x8_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xbb\x01`)
     return this
   }
@@ -3458,8 +3671,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
    */
   extmul_high_i16x8_s(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xbc\x01`)
     return this
   }
@@ -3468,8 +3682,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
    */
   extmul_low_i16x8_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xbd\x01`)
     return this
   }
@@ -3478,8 +3693,9 @@ class I32x4_ extends InstrArray {
    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
    */
   extmul_high_i16x8_u(val) {
-    if (val !== undefined)
+    if (val !== undefined) {
       this.push(I32x4.bytes(val))
+    }
     this.push(byte`\xfd\xbe\x01`)
     return this
   }
@@ -3531,9 +3747,298 @@ export const I32x4 = new Proxy(I32x4_, {
     if (typeof a[b] === "function") return a[b]
     const tmp = new a()
     return (..._) => (tmp[b](..._), tmp)
-  }
+  },
 })
 
+class I64x2_ extends InstrArray {
+  /**
+   * Creates a 128-bit vector by replicating a 64-bit integer across all lanes.
+   * Pops 1 value and splats it across all 2 lanes of the vector.
+   */
+  splat() {
+    if (val !== undefined) {
+      this.push(I64.bytes(val))
+    }
+    this.push(byte`\xfd\x12`)
+    return this
+  }
+  /**
+   * Extracts a 64-bit integer from a specific lane of a 128-bit vector.
+   * Pops a vector and pushes the extracted lane value as an i64.
+   */
+  extract_lane(index) {
+    this.push([byte`\xfd\x1d`, index])
+    return I64_.from(this)
+  }
+  /**
+   * Replaces a specific lane in a 128-bit vector with a new value.
+   * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+   */
+  replace_lane(val, index) {
+    if (val !== undefined) {
+      this.push(InstrArray.bytes(val))
+    }
+    this.push([byte`\xfd\x1e`, index])
+    return this
+  }
+  /**
+   * Computes the absolute value of each lane in an `i64x2` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+   */
+  abs() {
+    this.push(byte`\xfd\xc0\x01`)
+    return this
+  }
+  /**
+   * Negates each lane in an `i64x2` vector.
+   * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+   */
+  neg() {
+    this.push(byte`\xfd\xc1\x01`)
+    return this
+  }
+  /**
+   * Checks if all lanes in an `i64x2` vector are non-zero.
+   * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+   */
+  all_true() {
+    this.push(byte`\xfd\xc3\x01`)
+    return this
+  }
+  /**
+   * Creates a bitmask from an `i64x2` vector.
+   * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+   */
+  bitmask() {
+    this.push(byte`\xfd\xc4\x01`)
+    return this
+  }
+  /**
+   * Extends the low 2 lanes of an `i32x4` vector to 64 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+   */
+  extend_low_i32x4_s() {
+    this.push(byte`\xfd\xc7\x01`)
+    return this
+  }
+  /**
+   * Extends the high 2 lanes of an `i32x4` vector to 64 bits using signed extension.
+   * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+   */
+  extend_high_i32x4_s() {
+    this.push(byte`\xfd\xc8\x01`)
+    return this
+  }
+  /**
+   * Extends the low 2 lanes of an `i32x4` vector to 64 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+   */
+  extend_low_i32x4_u() {
+    this.push(byte`\xfd\xc9\x01`)
+    return this
+  }
+  /**
+   * Extends the high 2 lanes of an `i32x4` vector to 64 bits using zero extension.
+   * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+   */
+  extend_high_i32x4_u() {
+    this.push(byte`\xfd\xca\x01`)
+    return this
+  }
+  /**
+   * Performs a bitwise left shift on each lane of an `i64x2` vector.
+   * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+   */
+  shl(val) {
+    if (val !== undefined) {
+      this.push(InstrArray.bytes(val))
+    }
+    this.push(byte`\xfd\xcb\x01`)
+    return this
+  }
+  /**
+   * Performs an arithmetic right shift on each lane of an `i64x2` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+   */
+  shr_s(val) {
+    if (val !== undefined) {
+      this.push(InstrArray.bytes(val))
+    }
+    this.push(byte`\xfd\xcc\x01`)
+    return this
+  }
+  /**
+   * Performs a logical right shift on each lane of an `i64x2` vector.
+   * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+   */
+  shr_u(val) {
+    if (val !== undefined) {
+      this.push(InstrArray.bytes(val))
+    }
+    this.push(byte`\xfd\xcd\x01`)
+    return this
+  }
+  /**
+   * Adds corresponding lanes of two `i64x2` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+   */
+  add(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xce\x01`)
+    return this
+  }
+  /**
+   * Subtracts corresponding lanes of two `i64x2` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+   */
+  sub(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd1\x01`)
+    return this
+  }
+  /**
+   * Multiplies corresponding lanes of two `i64x2` vectors.
+   * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+   */
+  mul(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd5\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for equality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if equal, or `0x0000000000000000` otherwise.
+   */
+  eq(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd6\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for inequality (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if not equal, or `0x0000000000000000` otherwise.
+   */
+  ne(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd7\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for signed less-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a < b)`, or `0x0000000000000000` otherwise.
+   */
+  lt_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd8\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for signed greater-than (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a > b)`, or `0x0000000000000000` otherwise.
+   */
+  gt_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xd9\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for signed less-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≤ b)`, or `0x0000000000000000` otherwise.
+   */
+  le_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xda\x01`)
+    return this
+  }
+  /**
+   * Compares two `i64x2` vectors for signed greater-than-or-equal (per-lane).
+   * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≥ b)`, or `0x0000000000000000` otherwise.
+   */
+  ge_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xdb\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+   */
+  extmul_low_i32x4_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xdc\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
+   * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+   */
+  extmul_high_i32x4_s(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xdd\x01`)
+    return this
+  }
+  /**
+   * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+   */
+  extmul_low_i32x4_u(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xde\x01`)
+    return this
+  }
+  /**
+   * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
+   * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+   */
+  extmul_high_i32x4_u(val) {
+    if (val !== undefined) {
+      this.push(I64x2.bytes(val))
+    }
+    this.push(byte`\xfd\xdf\x01`)
+    return this
+  }
+  /**
+   * Pushes a 128-bit constant vector onto the stack.
+   * The immediate value is encoded as a vector of 2 64-bit values.
+   */
+  const(...vals) {
+    console.assert(vals.length === 2)
+    this.push([byte`\xfd\x0c`, encode_v128(vals)])
+    return this
+  }
+}
+/** @type {I64x2_} */
+export const I64x2 = new Proxy(I64x2_, {
+  get: (a, b) => {
+    if (typeof a[b] === "function") return a[b]
+    const tmp = new a()
+    return (..._) => (tmp[b](..._), tmp)
+  },
+})
 
 // let W = {}
 // /**

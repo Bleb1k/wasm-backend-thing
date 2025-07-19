@@ -2,9 +2,10 @@
  * TODO: Add debug info support (names and labels)
  */
 
-import App, { decodeIEEE754, encodeLEB128, import_kind, mutability, Type } from "./lib.js";
-import W from "./instructions.js";
+import App, { decodeIEEE754, encodeLEB128, import_kind, mutability, Type } from "./lib.js"
+import W from "./instructions.js"
 import { I32 } from "./expand_instr.js"
+import { add_arena_allocator, add_bump_allocator } from "./alloc.js"
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -57,36 +58,41 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 
 app.newMemory(1, undefined, "memory")
 
-app.newFunction([
-  [Type.i64], [Type.i64]  // args, rets
-], [
-  [Type.i64, 1] // params
-], [
-  W.I64.const(1),          // push i64{0} to stack
-  W.local.set(1),          // store 0 in local variable (acc)
+const { w_alloc: w_bump_alloc } = add_bump_allocator(app)
+const { w_new_arena } = add_arena_allocator(app)
 
-  W.block(Type.result,     // start of block
-    W.loop(Type.result,    // start of loop
+app.newFunction([
+  [Type.i64], // args
+  [Type.i64], // rets
+], [
+  [Type.i64, 1], // params
+], [
+  W.I64.const(1), // push i64{0} to stack
+  W.local.set(1), // store 0 in local variable (acc)
+
+  W.block(
+    Type.result, // start of block
+    W.loop(
+      Type.result, // start of loop
       W.local.get(0),
-      W.I64.eqz,
-      W.br_if(1),          // if param == 0 jump to block (to block end)
+      W.I64.eqz(),
+      W.br_if(1), // if param == 0 jump to block (to block end)
       W.local.get(0),
       W.local.get(1),
-      W.I64.mul,
-      W.local.set(1),      // acc *= param
+      W.I64.mul(),
+      W.local.set(1), // acc *= param
       W.local.get(0),
-      W.I64.const(1),
-      W.I64.sub,
-      W.local.set(0),      // param -= 1
-      W.br(0),           // jump to loop (to loop start)
+      W.I64.const(1).sub(),
+      W.local.set(0), // param -= 1
+      W.br(0), // jump to loop (to loop start)
     ),
   ),
 
-  W.local.get(1),        // push acc to stack, autoreturns
-], { export: "factorial" });
+  W.local.get(1), // push acc to stack, autoreturns
+], { export: "factorial" })
 
 app.newFunction([[], [Type.i32]], [], [
-  W.memory.size()
+  W.memory.size(),
 ], { export: "pages_allocated" })
 
 app.newFunction([[Type.i32], [Type.i32]], [], [
@@ -108,28 +114,20 @@ app.newFunction([[Type.externref, Type.externref, Type.i32], [Type.externref]], 
   W.select(Type.externref),
 ], { export: "check_selectt" })
 
-app.newFunction([[], [Type.i32]], [], [
-  // I32
-  //   .const(-1_234_567_890)
-  //   .store16(0),
-  // I32.load16_s(0),
-  I32.const(0),
-  I32.const(-1234567890),
-  I32.store16(),
-  I32.const(0),
-  I32.load16_s(),
+app.newFunction([[], [Type.i64]], [], [
+  I32.const(34).const(35),
+  W.call(w_new_arena),
 ], { export: "testt" })
 
 app.newFunction([[], [Type.i32]], [], [
   I32.const(1).store(0),
   I32.const(-1).store(4),
-  I32.load8_u(0),
-  I32.load8_u(4).add(),
+  I32.load8_u(0).load8_u(4).add(),
 ], { export: "u8bits" })
 
 // TODO: test V128.bitselect
 
-const { instance, module } = await app.compile();
+const { instance, module } = await app.compile({}, { debug: false })
 
 console.log(instance.exports)
 console.log("a factorial of 16 is", instance.exports.factorial(16n)) // 20922789888000n
@@ -141,15 +139,24 @@ console.log("after new allocation", instance.exports.pages_allocated())
 //   console.log(instance.exports.check_select(b, c, a)) // returns c (third is 0)
 //   console.log(instance.exports.check_select(c, a, b)) // returns c (third is 1)
 // })
-instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false"), 0)()
-instance.exports.check_selectt(()=>console.log("true"), ()=>console.log("false"), 1)()
+instance.exports.check_selectt(() => console.log("true"), () => console.log("false"), 0)()
+instance.exports.check_selectt(() => console.log("true"), () => console.log("false"), 1)()
 // new format:
 // app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);
 //   return [x, x, y];
 // })
 
-console.log(instance.exports.u8bits().toString(2))
+console.log("0b" + instance.exports.u8bits().toString(2))
+
+console.log(instance.exports.alloc(101))
+console.log(instance.exports.alloc(123))
+console.log(instance.exports.alloc(10000))
+console.log(instance.exports.alloc(50000))
+console.log(instance.exports.alloc(150000))
+console.log(instance.exports.alloc(500000))
+
+console.log("0x" + instance.exports.testt().toString(16).padStart(16, "0"))
 
 /**
  * There, app.function changes global context to the context of current app,

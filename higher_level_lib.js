@@ -1,4 +1,4 @@
-import { Num, Int, I64, I32, I16, I8, U64, U32, U16, U8, Float, F32, F64 } from "./higher_level_instructions.js"
+import { F32, F64, Float, I16, I32, I64, I8, Int, Num, U16, U32, U64, U8 } from "./higher_level_instructions.js"
 
 export class GlobalContext {
   /** @type {App?} */
@@ -6,17 +6,19 @@ export class GlobalContext {
 
   /** @param {App} app */
   static set current_app(app) {
-    if (this.current_app != app)
+    if (this.current_app != app) {
       throw new Error("You can't mish-mash apps.")
+    }
     this.current_app = app
   }
 
   static get current_app() {
-    if (!this.current_app)
+    if (!this.current_app) {
       throw new Error("No app currently stored.")
+    }
     return this.current_app
   }
-  
+
   // /** @param {Num} val */
   // static stack_push(val) {
   //   this.current_app?.scope.at(-1)
@@ -24,26 +26,30 @@ export class GlobalContext {
 
   /** @param {"block" | "function"} type  */
   static blockStart(type = "block") {
-    if (!this.current_app)
+    if (!this.current_app) {
       throw new Error("Can't create new scope, no app is provided.")
+    }
     const scope = new Scope()
     if (type === "block") {
-      if (this.current_app.scope.length === 0)
+      if (this.current_app.scope.length === 0) {
         throw new Error("Can't create block scope outside of function scope.")
+      }
       scope.local = this.current_app.scope.at(-1).local
     }
     this.current_app.scope.push(scope)
   }
-  
+
   static blockEnd() {
-    if (!this.current_app)
+    if (!this.current_app) {
       throw new Error("Can't pop the scope, no app is provided.")
+    }
     const scope = this.current_app.scope.pop()
-    if (scope.stack.length > 0) console.error(new Error("Stack of popped block is not empty."))
+    if (scope.stack.length > 0) {
+      console.error(new Error("Stack of popped block is not empty."))
+    }
   }
 
   static newParam() {
-    
   }
 }
 
@@ -64,15 +70,17 @@ export class App {
    */
   constructor(bypass_token) {
     if (bypass_token !== App.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use App.init() to create an instance.");
+      throw new Error(
+        "Private constructor. Use App.init() to create an instance.",
+      )
     }
   }
-  
+
   static init() {
     return new App(App.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
-  
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   import(a, ...b) {
     return (c, ...d) => {
@@ -84,16 +92,19 @@ export class App {
   function(fn) {
     GlobalContext.current_app = this
     GlobalContext.blockStart("function")
-    
+
     const returns = [fn()].flat()
     console.log("During creation, function returned:", returns)
-    
+
     GlobalContext.blockEnd()
-    if (!(this.scope.length == 0))
+    if (!(this.scope.length == 0)) {
       throw new Error("Not all blocks were closed properly.")
+    }
     delete GlobalContext.current_app
     return {
-      export: (str) => (console.log("Exporting function " + str), {_:() => "what?"})
+      export: (
+        str,
+      ) => (console.log("Exporting function " + str), { _: () => "what?" }),
     }
   }
 
@@ -107,16 +118,26 @@ class BlockCtx {
   static rets = []
 }
 
-const Block = function(fn) {
-  
+const Block = function (fn) {
 }
 
 const Func = {
   in: (...a) => (console.log(`Func.in(`, a, `)`), Func),
-  out: (...a) => (console.log(`Func.out(`, a, `)`), Func)
+  out: (...a) => (console.log(`Func.out(`, a, `)`), Func),
 } // fake it till you make it :D
 
 export default {
-  App, I64, I32, I16, I8, U64, U32, U16, U8, F32, F64,
-  Func, block: Block,
+  App,
+  I64,
+  I32,
+  I16,
+  I8,
+  U64,
+  U32,
+  U16,
+  U8,
+  F32,
+  F64,
+  Func,
+  block: Block,
 }

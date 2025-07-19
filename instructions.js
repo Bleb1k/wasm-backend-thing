@@ -1,5 +1,6 @@
-import { byte } from "./helpers.js";
-import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js";
+import { byte } from "./helpers.js"
+import { encode_v128, encodeIEEE754, encodeLEB128, Type } from "./lib.js"
+import { I32, I64, F32, F64, V128, I8x16, I16x8, I32x4, I64x2 } from "./expand_instr.js"
 
 /**
  * Manually transcribed 436 wasm instructions!
@@ -34,7 +35,9 @@ export default {
    */
   if: (type, ...ops) => {
     let result = [[byte`\x04`, { blocktype: type }], ...ops]
-    result.else = (...else_ops) => [...result, byte`\x05`, ...else_ops]
+    let tmp = result.slice()
+    result.else = (...else_ops) => [...tmp, byte`\x05`, ...else_ops, byte`\x0b`]
+    result.push(byte`\x0b`)
     return result
   },
   /**
@@ -78,8 +81,7 @@ export default {
    * Calls a function indirectly through a table.
    * Uses a function index from the table and verifies its type matches the expected signature.
    */
-  call_indirect: (table_index, functype = Type.Func()) =>
-    [byte`\x11`, { functype }, encodeLEB128("u32", table_index)],
+  call_indirect: (table_index, functype = Type.Func()) => [byte`\x11`, { functype }, encodeLEB128("u32", table_index)],
   /**
    * Drops the top value from the stack.
    * Removes the top element without using it.
@@ -203,8 +205,7 @@ export default {
      * Pops: dest (i32), src (i32), len (i32).
      * Copies `len` bytes from memory at `src` to memory at `dest`.
      */
-    copy: (dst_mem_index = 0, src_mem_index = 0) =>
-      [byte`\xfc\x0a`, src_mem_index, dst_mem_index],
+    copy: (dst_mem_index = 0, src_mem_index = 0) => [byte`\xfc\x0a`, src_mem_index, dst_mem_index],
     /**
      * Fills a region of linear memory with a repeated byte value.
      * Pops: dest (i32), value (i32), len (i32).
@@ -217,913 +218,917 @@ export default {
    * Passive data segments can no longer be used after this operation.
    */
   data_drop: (index) => [byte`\xfc\x09`, index],
-  I32: {
-    /**
-     * Loads an i32 value from linear memory at the address popped from the stack.
-     * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
-     * Requires alignment byte and offset byte right after.
-     */
-    load: (offset = 0) => [byte`\x28`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, sign-extends it to i32.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_s: (offset = 0) => [byte`\x2c`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, zero-extends it to i32.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_u: (offset = 0) => [byte`\x2d`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, sign-extends it to i32.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_s: (offset = 0) => [byte`\x2e`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, zero-extends it to i32.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_u: (offset = 0) => [byte`\x2f`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Stores an i32 value into linear memory at address popped from stack.
-     * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store: (offset = 0) => [byte`\x36`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 8 bits of an i32 value into memory.
-     * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store8: (offset = 0) => [byte`\x3a`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 16 bits of an i32 value into memory.
-     * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store16: (offset = 0) => [byte`\x3b`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 32-bit integer constant onto the stack.
-     * The immediate value is encoded as a signed LEB128.
-     */
-    const: (num = 0, type = "i32") => [byte`\x41`, encodeLEB128(type, num)],
-    /**
-     * Checks if the top i32 value is zero.
-     * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
-     */
-    eqz: byte`\x45`,
-    /**
-     * Equality comparison for i32.
-     * Pops 2 values, pushes 1 if equal, else 0.
-     */
-    eq: byte`\x46`,
-    /**
-     * Inequality comparison for i32.
-     * Pops 2 values, pushes 1 if not equal, else 0.
-     */
-    ne: byte`\x47`,
-    /**
-     * Signed less-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a < b) signed, else 0.
-     */
-    lt_s: byte`\x48`,
-    /**
-     * Unsigned less-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a < b) unsigned, else 0.
-     */
-    lt_u: byte`\x49`,
-    /**
-     * Signed greater-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a > b) signed, else 0.
-     */
-    gt_s: byte`\x4a`,
-    /**
-     * Unsigned greater-than comparison for i32.
-     * Pops 2 values, pushes 1 if (a > b) unsigned, else 0.
-     */
-    gt_u: byte`\x4b`,
-    /**
-     * Signed less-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0.
-     */
-    le_s: byte`\x4c`,
-    /**
-     * Unsigned less-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0.
-     */
-    le_u: byte`\x4d`,
-    /**
-     * Signed greater-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0.
-     */
-    ge_s: byte`\x4e`,
-    /**
-     * Unsigned greater-than-or-equal comparison for i32.
-     * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
-     */
-    ge_u: byte`\x4f`,
-    /**
-     * Counts leading zero bits in i32.
-     * Pops 1 value, pushes the count of leading zeros (0-32) as i32.
-     */
-    clz: byte`\x67`,
-    /**
-     * Counts trailing zero bits in i32.
-     * Pops 1 value, pushes the count of trailing zeros (0-32) as i32.
-     */
-    ctz: byte`\x68`,
-    /**
-     * Counts the number of set bits (1s) in i32.
-     * Pops 1 value, pushes the population count as i32.
-     */
-    popcnt: byte`\x69`,
-    /**
-     * Integer addition for i32.
-     * Pops 2 values, pushes (a + b) as i32 (wraps on overflow).
-     */
-    add: byte`\x6a`,
-    /**
-     * Integer subtraction for i32.
-     * Pops 2 values, pushes (a - b) as i32 (wraps on overflow).
-     */
-    sub: byte`\x6b`,
-    /**
-     * Integer multiplication for i32.
-     * Pops 2 values, pushes (a * b) as i32 (wraps on overflow).
-     */
-    mul: byte`\x6c`,
-    /**
-     * Signed integer division for i32.
-     * Pops 2 values, pushes (a / b) as i32.
-     * Traps if b = 0 or division overflows (e.g., INT32_MIN / -1).
-     */
-    div_s: byte`\x6d`,
-    /**
-     * Unsigned integer division for i32.
-     * Pops 2 values, pushes (a / b) as i32.
-     * Traps if b = 0.
-     */
-    div_u: byte`\x6e`,
-    /**
-     * Signed integer remainder for i32.
-     * Pops 2 values, pushes (a % b) as i32.
-     * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
-     */
-    rem_s: byte`\x6f`,
-    /**
-     * Unsigned integer remainder for i32.
-     * Pops 2 values, pushes (a % b) as i32.
-     * Traps if b = 0.
-     */
-    rem_u: byte`\x70`,
-    /**
-     * Bitwise AND for i32.
-     * Pops 2 values, pushes (a & b) as i32.
-     */
-    and: byte`\x71`,
-    /**
-     * Bitwise OR for i32.
-     * Pops 2 values, pushes (a | b) as i32.
-     */
-    or: byte`\x72`,
-    /**
-     * Bitwise XOR for i32.
-     * Pops 2 values, pushes (a ^ b) as i32.
-     */
-    xor: byte`\x73`,
-    /**
-     * Logical left shift for i32.
-     * Pops 2 values (a, b), pushes (a << (b % 32)) as i32.
-     */
-    shl: byte`\x74`,
-    /**
-     * Arithmetic right shift for i32 (sign-preserving).
-     * Pops 2 values (a, b), pushes (a >> (b % 32)) as i32.
-     */
-    shr_s: byte`\x75`,
-    /**
-     * Logical right shift for i32 (zero-filling).
-     * Pops 2 values (a, b), pushes (a >>> (b % 32)) as i32.
-     */
-    shr_u: byte`\x76`,
-    /**
-     * Bitwise rotate left for i32.
-     * Pops 2 values (a, b), rotates bits left by (b % 32) positions.
-     */
-    rotl: byte`\x77`,
-    /**
-     * Bitwise rotate right for i32.
-     * Pops 2 values (a, b), rotates bits right by (b % 32) positions.
-     */
-    rotr: byte`\x78`,
-    /**
-     * Wraps i64 to i32 (discards high 32 bits).
-     * Pops 1 i64 value, pushes low 32 bits as i32.
-     */
-    wrap_i64: byte`\xa7`,
-    /**
-     * Truncates f32 to signed i32.
-     * Pops 1 f32 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of i32 range.
-     */
-    trunc_f32_s: byte`\xa8`,
-    /**
-     * Truncates f32 to unsigned i32.
-     * Pops 1 f32 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of u32 range.
-     */
-    trunc_f32_u: byte`\xa9`,
-    /**
-     * Truncates f64 to signed i32.
-     * Pops 1 f64 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of i32 range.
-     */
-    trunc_f64_s: byte`\xaa`,
-    /**
-     * Truncates f64 to unsigned i32.
-     * Pops 1 f64 value, pushes truncated integer as i32.
-     * Traps if value is NaN, ±infinity, or out of u32 range.
-     */
-    trunc_f64_u: byte`\xab`,
-    /**
-     * Reinterprets f32 bits as i32 (bitwise copy).
-     * Pops 1 value, pushes raw bits as i32.
-     */
-    reinterpret_f32: byte`\xbc`,
-    /**
-     * Sign-extends 8-bit value to 32-bit i32.
-     * Pops 1 value, treats low 8 bits as signed and extends.
-     */
-    extend8_s: byte`\xc0`,
-    /**
-     * Sign-extends 16-bit value to 32-bit i32.
-     * Pops 1 value, treats low 16 bits as signed and extends.
-     */
-    extend16_s: byte`\xc1`,
-    /**
-     * Saturating truncation of f32 to signed i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
-     */
-    trunc_sat_f32_s: byte`\xfc\x00`,
-    /**
-     * Saturating truncation of f32 to unsigned i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
-     */
-    trunc_sat_f32_u: byte`\xfc\x01`,
-    /**
-     * Saturating truncation of f64 to signed i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
-     */
-    trunc_sat_f64_s: byte`\xfc\x02`,
-    /**
-     * Saturating truncation of f64 to unsigned i32.
-     * Pops 1 value, pushes truncated integer as i32.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
-     */
-    trunc_sat_f64_u: byte`\xfc\x03`,
-  },
-  I64: {
-    /**
-     * Loads an i64 value from linear memory at the address popped from the stack.
-     * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
-     * Requires alignment byte and offset byte right after.
-     */
-    load: (offset = 0) => [byte`\x29`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, sign-extends it to i64.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_s: (offset = 0) => [byte`\x30`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Loads an 8-bit value from linear memory, zero-extends it to i64.
-     * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load8_u: (offset = 0) => [byte`\x31`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, sign-extends it to i64.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_s: (offset = 0) => [byte`\x32`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 16-bit value from linear memory, zero-extends it to i64.
-     * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load16_u: (offset = 0) => [byte`\x33`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 32-bit value from linear memory, sign-extends it to i64.
-     * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load32_s: (offset = 0) => [byte`\x34`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Loads a 32-bit value from linear memory, zero-extends it to i64.
-     * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    load32_u: (offset = 0) => [byte`\x35`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Stores an i64 value into linear memory at address popped from stack.
-     * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store: (offset = 0) => [byte`\x37`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 8 bits of an i64 value into memory.
-     * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store8: (offset = 0) => [byte`\x3c`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 16 bits of an i64 value into memory.
-     * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store16: (offset = 0) => [byte`\x3d`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Stores the low 32 bits of an i64 value into memory.
-     * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store32: (offset = 0) => [byte`\x3e`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 64-bit integer constant onto the stack.
-     * The immediate value is encoded as a signed LEB128.
-     */
-    const: (num = 0, type = "i64") => [byte`\x42`, encodeLEB128(type, num)],
-    /**
-     * Checks if the top i64 value is zero.
-     * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
-     */
-    eqz: byte`\x50`,
-    /**
-     * Equality comparison for i64.
-     * Pops 2 values, pushes 1 if equal, else 0 as i32.
-     */
-    eq: byte`\x51`,
-    /**
-     * Inequality comparison for i64.
-     * Pops 2 values, pushes 1 if not equal, else 0 as i32.
-     */
-    ne: byte`\x52`,
-    /**
-     * Signed less-than comparison for i64.
-     * Pops 2 values, pushes 1 if (a < b) signed, else 0 as i32.
-     */
-    lt_s: byte`\x53`,
-    /**
-     * Unsigned less-than comparison for i64.
-     * Pops 2 values, pushes 1 if (a < b) unsigned, else 0 as i32.
-     */
-    lt_u: byte`\x54`,
-    /**
-     * Signed greater-than comparison for i64.
-     * Pops 2 values, pushes 1 if (a > b) signed, else 0 as i32.
-     */
-    gt_s: byte`\x55`,
-    /**
-     * Unsigned greater-than comparison for i64.
-     * Pops 2 values, pushes 1 if (a > b) unsigned, else 0 as i32.
-     */
-    gt_u: byte`\x56`,
-    /**
-     * Signed less-than-or-equal comparison for i64.
-     * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0 as i32.
-     */
-    le_s: byte`\x57`,
-    /**
-     * Unsigned less-than-or-equal comparison for i64.
-     * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0 as i32.
-     */
-    le_u: byte`\x58`,
-    /**
-     * Signed greater-than-or-equal comparison for i64.
-     * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0 as i32.
-     */
-    ge_s: byte`\x59`,
-    /**
-     * Unsigned greater-than-or-equal comparison for i64.
-     * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0 as i32.
-     */
-    ge_u: byte`\x5a`,
-    /**
-     * Counts leading zero bits in i64.
-     * Pops 1 value, pushes the count (0-64) as i64.
-     */
-    clz: byte`\x79`,
-    /**
-     * Counts trailing zero bits in i64.
-     * Pops 1 value, pushes the count (0-64) as i64.
-     */
-    ctz: byte`\x7a`,
-    /**
-     * Counts set bits (1s) in i64.
-     * Pops 1 value, pushes the population count as i64.
-     */
-    popcnt: byte`\x7b`,
-    /**
-     * Integer addition for i64.
-     * Pops 2 values, pushes (a + b) as i64 (wraps on overflow).
-     */
-    add: byte`\x7c`,
-    /**
-     * Integer subtraction for i64.
-     * Pops 2 values, pushes (a - b) as i64 (wraps on overflow).
-     */
-    sub: byte`\x7d`,
-    /**
-     * Integer multiplication for i64.
-     * Pops 2 values, pushes (a * b) as i64 (wraps on overflow).
-     */
-    mul: byte`\x7e`,
-    /**
-     * Signed integer division for i64.
-     * Pops 2 values, pushes (a / b) as i64.
-     * Traps if b = 0 or division overflows (e.g., INT64_MIN / -1).
-     */
-    div_s: byte`\x7f`,
-    /**
-     * Unsigned integer division for i64.
-     * Pops 2 values, pushes (a / b) as i64.
-     * Traps if b = 0.
-     */
-    div_u: byte`\x80`,
-    /**
-     * Signed integer remainder for i64.
-     * Pops 2 values, pushes (a % b) as i64.
-     * Traps if b = 0 or division overflows.
-     */
-    rem_s: byte`\x81`,
-    /**
-     * Unsigned integer remainder for i64.
-     * Pops 2 values, pushes (a % b) as i64.
-     * Traps if b = 0.
-     */
-    rem_u: byte`\x82`,
-    /**
-     * Bitwise AND for i64.
-     * Pops 2 values, pushes (a & b) as i64.
-     */
-    and: byte`\x83`,
-    /**
-     * Bitwise OR for i64.
-     * Pops 2 values, pushes (a | b) as i64.
-     */
-    or: byte`\x84`,
-    /**
-     * Bitwise XOR for i64.
-     * Pops 2 values, pushes (a ^ b) as i64.
-     */
-    xor: byte`\x85`,
-    /**
-     * Logical left shift for i64.
-     * Pops 2 values (a, b), pushes (a << (b % 64)) as i64.
-     */
-    shl: byte`\x86`,
-    /**
-     * Arithmetic right shift for i64 (sign-preserving).
-     * Pops 2 values (a, b), pushes (a >> (b % 64)) as i64.
-     */
-    shr_s: byte`\x87`,
-    /**
-     * Logical right shift for i64 (zero-filling).
-     * Pops 2 values (a, b), pushes (a >>> (b % 64)) as i64.
-     */
-    shr_u: byte`\x88`,
-    /**
-     * Bitwise rotate left for i64.
-     * Pops 2 values (a, b), rotates bits left by (b % 64) positions.
-     */
-    rotl: byte`\x89`,
-    /**
-     * Bitwise rotate right for i64.
-     * Pops 2 values (a, b), rotates bits right by (b % 64) positions.
-     */
-    rotr: byte`\x8a`,
-    /**
-     * Sign-extends i32 to i64.
-     * Pops 1 i32 value, pushes sign-extended i64.
-     */
-    extend_i32_s: byte`\xac`,
-    /**
-     * Zero-extends i32 to i64.
-     * Pops 1 i32 value, pushes zero-extended i64.
-     */
-    extend_i32_u: byte`\xad`,
-    /**
-     * Truncates f32 to signed i64.
-     * Pops 1 f32 value, pushes truncated integer as i64.
-     * Traps if value is NaN, ±infinity, or out of i64 range.
-     */
-    trunc_f32_s: byte`\xae`,
-    /**
-     * Truncates f32 to unsigned i64.
-     * Pops 1 f32 value, pushes truncated integer as i64.
-     * Traps if value is NaN, ±infinity, or out of u64 range.
-     */
-    trunc_f32_u: byte`\xaf`,
-    /**
-     * Truncates f64 to signed i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Traps if value is NaN, ±infinity, or out of i64 range.
-     */
-    trunc_f64_s: byte`\xb0`,
-    /**
-     * Truncates f64 to unsigned i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Traps if value is NaN, ±infinity, or out of u64 range.
-     */
-    trunc_f64_u: byte`\xb1`,
-    /**
-     * Reinterprets f64 bits as i64 (bitwise copy).
-     * Pops 1 value, pushes raw bits as i64.
-     */
-    reinterpret_f64: byte`\xbd`,
-    /**
-     * Sign-extends 8-bit value to 64-bit i64.
-     * Pops 1 value, treats low 8 bits as signed and extends.
-     */
-    extend8_s: byte`\xc2`,
-    /**
-     * Sign-extends 16-bit value to 64-bit i64.
-     * Pops 1 value, treats low 16 bits as signed and extends.
-     */
-    extend16_s: byte`\xc3`,
-    /**
-     * Sign-extends 32-bit value to 64-bit i64.
-     * Pops 1 value, treats low 32 bits as signed and extends.
-     */
-    extend32_s: byte`\xc4`,
-    /**
-     * Saturating truncation of f32 to signed i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
-     */
-    trunc_sat_f32_s: byte`\xfc\x04`,
-    /**
-     * Saturating truncation of f32 to unsigned i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
-     */
-    trunc_sat_f32_u: byte`\xfc\x05`,
-    /**
-     * Saturating truncation of f64 to signed i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
-     */
-    trunc_sat_f64_s: byte`\xfc\x06`,
-    /**
-     * Saturating truncation of f64 to unsigned i64.
-     * Pops 1 value, pushes truncated integer as i64.
-     * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
-     */
-    trunc_sat_f64_u: byte`\xfc\x07`,
-  },
-  F32: {
-    /**
-     * Loads an f32 value from linear memory at the address popped from the stack.
-     * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
-     *   equires alignment byte and offset byte right after.
-     */
-    load: (offset = 0) => [byte`\x2a`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Stores an f32 value into linear memory at address popped from stack.
-     * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store: (offset = 0) => [byte`\x38`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 32-bit float constant onto the stack.
-     * The immediate value is encoded in IEEE 754 binary32 format.
-     */
-    const: (num = 0, type = "f32") => [byte`\x43`, encodeIEEE754(type, num)],
-    /**
-     * Floating-point equality comparison for f32.
-     * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    eq: byte`\x5b`,
-    /**
-     * Floating-point inequality comparison for f32.
-     * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 1).
-     */
-    ne: byte`\x5c`,
-    /**
-     * Floating-point less-than comparison for f32.
-     * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    lt: byte`\x5d`,
-    /**
-     * Floating-point greater-than comparison for f32.
-     * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    gt: byte`\x5e`,
-    /**
-     * Floating-point less-than-or-equal comparison for f32.
-     * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    le: byte`\x5f`,
-    /**
-     * Floating-point greater-than-or-equal comparison for f32.
-     * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    ge: byte`\x60`,
-    /**
-     * Absolute value for f32.
-     * Pops 1 value, pushes |a| as f32 (preserves NaN).
-     */
-    abs: byte`\x8b`,
-    /**
-     * Negation for f32.
-     * Pops 1 value, pushes -a as f32 (flips sign bit).
-     */
-    neg: byte`\x8c`,
-    /**
-     * Rounds f32 up to nearest integer.
-     * Pops 1 value, pushes ceil(a) as f32.
-     */
-    ceil: byte`\x8d`,
-    /**
-     * Rounds f32 down to nearest integer.
-     * Pops 1 value, pushes floor(a) as f32.
-     */
-    floor: byte`\x8e`,
-    /**
-     * Truncates f32 toward zero.
-     * Pops 1 value, pushes trunc(a) as f32.
-     */
-    trunc: byte`\x8f`,
-    /**
-     * Rounds f32 to nearest integer (ties to even).
-     * Pops 1 value, pushes rounded result as f32.
-     * Follows IEEE 754 rules (NaN → NaN).
-     */
-    nearest: byte`\x90`,
-    /**
-     * Computes square root of f32.
-     * Pops 1 value, pushes sqrt(a) as f32.
-     * Returns NaN for negative inputs.
-     */
-    sqrt: byte`\x91`,
-    /**
-     * Floating-point addition for f32.
-     * Pops 2 values, pushes (a + b) as f32.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    add: byte`\x92`,
-    /**
-     * Floating-point subtraction for f32.
-     * Pops 2 values, pushes (a - b) as f32.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    sub: byte`\x93`,
-    /**
-     * Floating-point multiplication for f32.
-     * Pops 2 values, pushes (a * b) as f32.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    mul: byte`\x94`,
-    /**
-     * Floating-point division for f32.
-     * Pops 2 values, pushes (a / b) as f32.
-     * Follows IEEE 754 rules (NaN/±infinity handling).
-     */
-    div: byte`\x95`,
-    /**
-     * Returns minimum of two f32 values.
-     * Pops 2 values, pushes min(a, b) as f32.
-     * Handles NaN and -0/+0 correctly per IEEE 754.
-     */
-    min: byte`\x96`,
-    /**
-     * Returns maximum of two f32 values.
-     * Pops 2 values, pushes max(a, b) as f32.
-     * Handles NaN and -0/+0 correctly per IEEE 754.
-     */
-    max: byte`\x97`,
-    /**
-     * Copies sign bit from b to a for f32.
-     * Pops 2 values, pushes (|a| with b's sign) as f32.
-     */
-    copysign: byte`\x98`,
-    /**
-     * Converts signed i32 to f32.
-     * Pops 1 value, pushes floating-point equivalent.
-     * May lose precision for large integers.
-     */
-    convert_i32_s: byte`\xb2`,
-    /**
-     * Converts unsigned i32 to f32.
-     * Pops 1 value, pushes floating-point equivalent.
-     * May lose precision for large integers.
-     */
-    convert_i32_u: byte`\xb3`,
-    /**
-     * Converts signed i64 to f32.
-     * Pops 1 value, pushes floating-point equivalent.
-     * Likely loses precision (f32 has 23-bit mantissa).
-     */
-    convert_i64_s: byte`\xb4`,
-    /**
-     * Converts unsigned i64 to f32.
-     * Pops 1 value, pushes floating-point equivalent.
-     * Likely loses precision (f32 has 23-bit mantissa).
-     */
-    convert_i64_u: byte`\xb5`,
-    /**
-     * Demotes f64 to f32 (loses precision).
-     * Pops 1 value, pushes f32 equivalent.
-     * Rounds to nearest representable f32 value.
-     */
-    demote_f64: byte`\xb6`,
-    /**
-     * Reinterprets i32 bits as f32 (bitwise copy).
-     * Pops 1 value, pushes raw bits as f32.
-     */
-    reinterpret_i32: byte`\xbe`,
-  },
-  F64: {
-    /**
-     * Loads an f64 value from linear memory at the address popped from the stack.
-     * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
-     * Requires alignment byte and offset byte right after.
-     */
-    load: (offset = 0) => [byte`\x2b`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Stores an f64 value into linear memory at address popped from stack.
-     * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
-     * Requires alignment byte and offset byte right after.
-     */
-    store: (offset = 0) => [byte`\x39`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 64-bit float constant onto the stack.
-     * The immediate value is encoded in IEEE 754 binary64 format.
-     */
-    const: (num = 0, type = "f64") => [byte`\x44`, encodeIEEE754(type, num)],
-    /**
-     * Floating-point equality comparison for f64.
-     * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    eq: byte`\x61`,
-    /**
-     * Floating-point inequality comparison for f64.
-     * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 1).
-     */
-    ne: byte`\x62`,
-    /**
-     * Floating-point less-than comparison for f64.
-     * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    lt: byte`\x63`,
-    /**
-     * Floating-point greater-than comparison for f64.
-     * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    gt: byte`\x64`,
-    /**
-     * Floating-point less-than-or-equal comparison for f64.
-     * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    le: byte`\x65`,
-    /**
-     * Floating-point greater-than-or-equal comparison for f64.
-     * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
-     * Follows IEEE 754 rules (NaN returns 0).
-     */
-    ge: byte`\x66`,
-    /**
-     * Absolute value for f64.
-     * Pops 1 value, pushes |a| as f64 (preserves NaN).
-     */
-    abs: byte`\x99`,
-    /**
-     * Negation for f64.
-     * Pops 1 value, pushes -a as f64 (flips sign bit).
-     */
-    neg: byte`\x9a`,
-    /**
-     * Rounds f64 up to nearest integer.
-     * Pops 1 value, pushes ceil(a) as f64.
-     */
-    ceil: byte`\x9b`,
-    /**
-     * Rounds f64 down to nearest integer.
-     * Pops 1 value, pushes floor(a) as f64.
-     */
-    floor: byte`\x9c`,
-    /**
-     * Truncates f64 toward zero.
-     * Pops 1 value, pushes trunc(a) as f64.
-     */
-    trunc: byte`\x9d`,
-    /**
-     * Rounds f64 to nearest integer (ties to even).
-     * Pops 1 value, pushes rounded result as f64.
-     * Follows IEEE 754 rules (NaN → NaN).
-     */
-    nearest: byte`\x9e`,
-    /**
-     * Computes square root of f64.
-     * Pops 1 value, pushes sqrt(a) as f64.
-     * Returns NaN for negative inputs.
-     */
-    sqrt: byte`\x9f`,
-    /**
-     * Floating-point addition for f64.
-     * Pops 2 values, pushes (a + b) as f64.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    add: byte`\xa0`,
-    /**
-     * Floating-point subtraction for f64.
-     * Pops 2 values, pushes (a - b) as f64.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    sub: byte`\xa1`,
-    /**
-     * Floating-point multiplication for f64.
-     * Pops 2 values, pushes (a * b) as f64.
-     * Follows IEEE 754 rules (NaN propagation).
-     */
-    mul: byte`\xa2`,
-    /**
-     * Floating-point division for f64.
-     * Pops 2 values, pushes (a / b) as f64.
-     * Follows IEEE 754 rules (NaN/±infinity handling).
-     */
-    div: byte`\xa3`,
-    /**
-     * Returns minimum of two f64 values.
-     * Pops 2 values, pushes min(a, b) as f64.
-     * Handles NaN and -0/+0 correctly per IEEE 754.
-     */
-    min: byte`\xa4`,
-    /**
-     * Returns maximum of two f64 values.
-     * Pops 2 values, pushes max(a, b) as f64.
-     * Handles NaN and -0/+0 correctly per IEEE 754.
-     */
-    max: byte`\xa5`,
-    /**
-     * Copies sign bit from b to a for f64.
-     * Pops 2 values, pushes (|a| with b's sign) as f64.
-     */
-    copysign: byte`\xa6`,
-    /**
-     * Converts signed i32 to f64.
-     * Pops 1 value, pushes floating-point equivalent.
-     * Exact conversion (no precision loss).
-     */
-    convert_i32_s: byte`\xb7`,
-    /**
-     * Converts unsigned i32 to f64.
-     * Pops 1 value, pushes floating-point equivalent.
-     * Exact conversion (no precision loss).
-     */
-    convert_i32_u: byte`\xb8`,
-    /**
-     * Converts signed i64 to f64.
-     * Pops 1 value, pushes floating-point equivalent.
-     * May lose precision (f64 has 52-bit mantissa).
-     */
-    convert_i64_s: byte`\xb9`,
-    /**
-     * Converts unsigned i64 to f64.
-     * Pops 1 value, pushes floating-point equivalent.
-     * May lose precision (f64 has 52-bit mantissa).
-     */
-    convert_i64_u: byte`\xba`,
-    /**
-     * Promotes f32 to f64 (exact conversion).
-     * Pops 1 value, pushes f64 equivalent.
-     */
-    promote_f32: byte`\xbb`,
-    /**
-     * Reinterprets i64 bits as f64 (bitwise copy).
-     * Pops 1 value, pushes raw bits as f64.
-     */
-    reinterpret_i64: byte`\xbf`,
-  },
+  I32,
+  // *{
+  //   /**
+  //    * Loads an i32 value from linear memory at the address popped from the stack.
+  //    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load: (offset = 0) => [byte`\x28`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads an 8-bit value from linear memory, sign-extends it to i32.
+  //    * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load8_s: (offset = 0) => [byte`\x2c`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads an 8-bit value from linear memory, zero-extends it to i32.
+  //    * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load8_u: (offset = 0) => [byte`\x2d`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 16-bit value from linear memory, sign-extends it to i32.
+  //    * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load16_s: (offset = 0) => [byte`\x2e`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 16-bit value from linear memory, zero-extends it to i32.
+  //    * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load16_u: (offset = 0) => [byte`\x2f`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores an i32 value into linear memory at address popped from stack.
+  //    * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store: (offset = 0) => [byte`\x36`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores the low 8 bits of an i32 value into memory.
+  //    * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store8: (offset = 0) => [byte`\x3a`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores the low 16 bits of an i32 value into memory.
+  //    * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store16: (offset = 0) => [byte`\x3b`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Pushes a 32-bit integer constant onto the stack.
+  //    * The immediate value is encoded as a signed LEB128.
+  //    */
+  //   const: (num = 0, type = "i32") => [byte`\x41`, encodeLEB128(type, num)],
+  //   /**
+  //    * Checks if the top i32 value is zero.
+  //    * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
+  //    */
+  //   eqz: byte`\x45`,
+  //   /**
+  //    * Equality comparison for i32.
+  //    * Pops 2 values, pushes 1 if equal, else 0.
+  //    */
+  //   eq: byte`\x46`,
+  //   /**
+  //    * Inequality comparison for i32.
+  //    * Pops 2 values, pushes 1 if not equal, else 0.
+  //    */
+  //   ne: byte`\x47`,
+  //   /**
+  //    * Signed less-than comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a < b) signed, else 0.
+  //    */
+  //   lt_s: byte`\x48`,
+  //   /**
+  //    * Unsigned less-than comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a < b) unsigned, else 0.
+  //    */
+  //   lt_u: byte`\x49`,
+  //   /**
+  //    * Signed greater-than comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a > b) signed, else 0.
+  //    */
+  //   gt_s: byte`\x4a`,
+  //   /**
+  //    * Unsigned greater-than comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a > b) unsigned, else 0.
+  //    */
+  //   gt_u: byte`\x4b`,
+  //   /**
+  //    * Signed less-than-or-equal comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0.
+  //    */
+  //   le_s: byte`\x4c`,
+  //   /**
+  //    * Unsigned less-than-or-equal comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0.
+  //    */
+  //   le_u: byte`\x4d`,
+  //   /**
+  //    * Signed greater-than-or-equal comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0.
+  //    */
+  //   ge_s: byte`\x4e`,
+  //   /**
+  //    * Unsigned greater-than-or-equal comparison for i32.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0.
+  //    */
+  //   ge_u: byte`\x4f`,
+  //   /**
+  //    * Counts leading zero bits in i32.
+  //    * Pops 1 value, pushes the count of leading zeros (0-32) as i32.
+  //    */
+  //   clz: byte`\x67`,
+  //   /**
+  //    * Counts trailing zero bits in i32.
+  //    * Pops 1 value, pushes the count of trailing zeros (0-32) as i32.
+  //    */
+  //   ctz: byte`\x68`,
+  //   /**
+  //    * Counts the number of set bits (1s) in i32.
+  //    * Pops 1 value, pushes the population count as i32.
+  //    */
+  //   popcnt: byte`\x69`,
+  //   /**
+  //    * Integer addition for i32.
+  //    * Pops 2 values, pushes (a + b) as i32 (wraps on overflow).
+  //    */
+  //   add: byte`\x6a`,
+  //   /**
+  //    * Integer subtraction for i32.
+  //    * Pops 2 values, pushes (a - b) as i32 (wraps on overflow).
+  //    */
+  //   sub: byte`\x6b`,
+  //   /**
+  //    * Integer multiplication for i32.
+  //    * Pops 2 values, pushes (a * b) as i32 (wraps on overflow).
+  //    */
+  //   mul: byte`\x6c`,
+  //   /**
+  //    * Signed integer division for i32.
+  //    * Pops 2 values, pushes (a / b) as i32.
+  //    * Traps if b = 0 or division overflows (e.g., INT32_MIN / -1).
+  //    */
+  //   div_s: byte`\x6d`,
+  //   /**
+  //    * Unsigned integer division for i32.
+  //    * Pops 2 values, pushes (a / b) as i32.
+  //    * Traps if b = 0.
+  //    */
+  //   div_u: byte`\x6e`,
+  //   /**
+  //    * Signed integer remainder for i32.
+  //    * Pops 2 values, pushes (a % b) as i32.
+  //    * Traps if b = 0 or division overflows (e.g., INT32_MIN % -1).
+  //    */
+  //   rem_s: byte`\x6f`,
+  //   /**
+  //    * Unsigned integer remainder for i32.
+  //    * Pops 2 values, pushes (a % b) as i32.
+  //    * Traps if b = 0.
+  //    */
+  //   rem_u: byte`\x70`,
+  //   /**
+  //    * Bitwise AND for i32.
+  //    * Pops 2 values, pushes (a & b) as i32.
+  //    */
+  //   and: byte`\x71`,
+  //   /**
+  //    * Bitwise OR for i32.
+  //    * Pops 2 values, pushes (a | b) as i32.
+  //    */
+  //   or: byte`\x72`,
+  //   /**
+  //    * Bitwise XOR for i32.
+  //    * Pops 2 values, pushes (a ^ b) as i32.
+  //    */
+  //   xor: byte`\x73`,
+  //   /**
+  //    * Logical left shift for i32.
+  //    * Pops 2 values (a, b), pushes (a << (b % 32)) as i32.
+  //    */
+  //   shl: byte`\x74`,
+  //   /**
+  //    * Arithmetic right shift for i32 (sign-preserving).
+  //    * Pops 2 values (a, b), pushes (a >> (b % 32)) as i32.
+  //    */
+  //   shr_s: byte`\x75`,
+  //   /**
+  //    * Logical right shift for i32 (zero-filling).
+  //    * Pops 2 values (a, b), pushes (a >>> (b % 32)) as i32.
+  //    */
+  //   shr_u: byte`\x76`,
+  //   /**
+  //    * Bitwise rotate left for i32.
+  //    * Pops 2 values (a, b), rotates bits left by (b % 32) positions.
+  //    */
+  //   rotl: byte`\x77`,
+  //   /**
+  //    * Bitwise rotate right for i32.
+  //    * Pops 2 values (a, b), rotates bits right by (b % 32) positions.
+  //    */
+  //   rotr: byte`\x78`,
+  //   /**
+  //    * Wraps i64 to i32 (discards high 32 bits).
+  //    * Pops 1 i64 value, pushes low 32 bits as i32.
+  //    */
+  //   wrap_i64: byte`\xa7`,
+  //   /**
+  //    * Truncates f32 to signed i32.
+  //    * Pops 1 f32 value, pushes truncated integer as i32.
+  //    * Traps if value is NaN, ±infinity, or out of i32 range.
+  //    */
+  //   trunc_f32_s: byte`\xa8`,
+  //   /**
+  //    * Truncates f32 to unsigned i32.
+  //    * Pops 1 f32 value, pushes truncated integer as i32.
+  //    * Traps if value is NaN, ±infinity, or out of u32 range.
+  //    */
+  //   trunc_f32_u: byte`\xa9`,
+  //   /**
+  //    * Truncates f64 to signed i32.
+  //    * Pops 1 f64 value, pushes truncated integer as i32.
+  //    * Traps if value is NaN, ±infinity, or out of i32 range.
+  //    */
+  //   trunc_f64_s: byte`\xaa`,
+  //   /**
+  //    * Truncates f64 to unsigned i32.
+  //    * Pops 1 f64 value, pushes truncated integer as i32.
+  //    * Traps if value is NaN, ±infinity, or out of u32 range.
+  //    */
+  //   trunc_f64_u: byte`\xab`,
+  //   /**
+  //    * Reinterprets f32 bits as i32 (bitwise copy).
+  //    * Pops 1 value, pushes raw bits as i32.
+  //    */
+  //   reinterpret_f32: byte`\xbc`,
+  //   /**
+  //    * Sign-extends 8-bit value to 32-bit i32.
+  //    * Pops 1 value, treats low 8 bits as signed and extends.
+  //    */
+  //   extend8_s: byte`\xc0`,
+  //   /**
+  //    * Sign-extends 16-bit value to 32-bit i32.
+  //    * Pops 1 value, treats low 16 bits as signed and extends.
+  //    */
+  //   extend16_s: byte`\xc1`,
+  //   /**
+  //    * Saturating truncation of f32 to signed i32.
+  //    * Pops 1 value, pushes truncated integer as i32.
+  //    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+  //    */
+  //   trunc_sat_f32_s: byte`\xfc\x00`,
+  //   /**
+  //    * Saturating truncation of f32 to unsigned i32.
+  //    * Pops 1 value, pushes truncated integer as i32.
+  //    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+  //    */
+  //   trunc_sat_f32_u: byte`\xfc\x01`,
+  //   /**
+  //    * Saturating truncation of f64 to signed i32.
+  //    * Pops 1 value, pushes truncated integer as i32.
+  //    * Converts NaN/infinity/out-of-range values to INT32_MIN or INT32_MAX.
+  //    */
+  //   trunc_sat_f64_s: byte`\xfc\x02`,
+  //   /**
+  //    * Saturating truncation of f64 to unsigned i32.
+  //    * Pops 1 value, pushes truncated integer as i32.
+  //    * Converts NaN/infinity/out-of-range values to 0 or UINT32_MAX.
+  //    */
+  //   trunc_sat_f64_u: byte`\xfc\x03`,
+  // }*,
+  I64,
+  // {
+  //   /**
+  //    * Loads an i64 value from linear memory at the address popped from the stack.
+  //    * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load: (offset = 0) => [byte`\x29`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads an 8-bit value from linear memory, sign-extends it to i64.
+  //    * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load8_s: (offset = 0) => [byte`\x30`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads an 8-bit value from linear memory, zero-extends it to i64.
+  //    * Pops address from stack. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load8_u: (offset = 0) => [byte`\x31`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 16-bit value from linear memory, sign-extends it to i64.
+  //    * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load16_s: (offset = 0) => [byte`\x32`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 16-bit value from linear memory, zero-extends it to i64.
+  //    * Pops address from stack. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load16_u: (offset = 0) => [byte`\x33`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 32-bit value from linear memory, sign-extends it to i64.
+  //    * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load32_s: (offset = 0) => [byte`\x34`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a 32-bit value from linear memory, zero-extends it to i64.
+  //    * Pops address from stack. Requires 4-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load32_u: (offset = 0) => [byte`\x35`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores an i64 value into linear memory at address popped from stack.
+  //    * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store: (offset = 0) => [byte`\x37`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores the low 8 bits of an i64 value into memory.
+  //    * Pops value then address. Requires 1-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store8: (offset = 0) => [byte`\x3c`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores the low 16 bits of an i64 value into memory.
+  //    * Pops value then address. Requires 2-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store16: (offset = 0) => [byte`\x3d`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores the low 32 bits of an i64 value into memory.
+  //    * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store32: (offset = 0) => [byte`\x3e`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Pushes a 64-bit integer constant onto the stack.
+  //    * The immediate value is encoded as a signed LEB128.
+  //    */
+  //   const: (num = 0, type = "i64") => [byte`\x42`, encodeLEB128(type, num)],
+  //   /**
+  //    * Checks if the top i64 value is zero.
+  //    * Pops 1 value, pushes 1 (if zero) or 0 (non-zero) as i32.
+  //    */
+  //   eqz: byte`\x50`,
+  //   /**
+  //    * Equality comparison for i64.
+  //    * Pops 2 values, pushes 1 if equal, else 0 as i32.
+  //    */
+  //   eq: byte`\x51`,
+  //   /**
+  //    * Inequality comparison for i64.
+  //    * Pops 2 values, pushes 1 if not equal, else 0 as i32.
+  //    */
+  //   ne: byte`\x52`,
+  //   /**
+  //    * Signed less-than comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a < b) signed, else 0 as i32.
+  //    */
+  //   lt_s: byte`\x53`,
+  //   /**
+  //    * Unsigned less-than comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a < b) unsigned, else 0 as i32.
+  //    */
+  //   lt_u: byte`\x54`,
+  //   /**
+  //    * Signed greater-than comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a > b) signed, else 0 as i32.
+  //    */
+  //   gt_s: byte`\x55`,
+  //   /**
+  //    * Unsigned greater-than comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a > b) unsigned, else 0 as i32.
+  //    */
+  //   gt_u: byte`\x56`,
+  //   /**
+  //    * Signed less-than-or-equal comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) signed, else 0 as i32.
+  //    */
+  //   le_s: byte`\x57`,
+  //   /**
+  //    * Unsigned less-than-or-equal comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) unsigned, else 0 as i32.
+  //    */
+  //   le_u: byte`\x58`,
+  //   /**
+  //    * Signed greater-than-or-equal comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) signed, else 0 as i32.
+  //    */
+  //   ge_s: byte`\x59`,
+  //   /**
+  //    * Unsigned greater-than-or-equal comparison for i64.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) unsigned, else 0 as i32.
+  //    */
+  //   ge_u: byte`\x5a`,
+  //   /**
+  //    * Counts leading zero bits in i64.
+  //    * Pops 1 value, pushes the count (0-64) as i64.
+  //    */
+  //   clz: byte`\x79`,
+  //   /**
+  //    * Counts trailing zero bits in i64.
+  //    * Pops 1 value, pushes the count (0-64) as i64.
+  //    */
+  //   ctz: byte`\x7a`,
+  //   /**
+  //    * Counts set bits (1s) in i64.
+  //    * Pops 1 value, pushes the population count as i64.
+  //    */
+  //   popcnt: byte`\x7b`,
+  //   /**
+  //    * Integer addition for i64.
+  //    * Pops 2 values, pushes (a + b) as i64 (wraps on overflow).
+  //    */
+  //   add: byte`\x7c`,
+  //   /**
+  //    * Integer subtraction for i64.
+  //    * Pops 2 values, pushes (a - b) as i64 (wraps on overflow).
+  //    */
+  //   sub: byte`\x7d`,
+  //   /**
+  //    * Integer multiplication for i64.
+  //    * Pops 2 values, pushes (a * b) as i64 (wraps on overflow).
+  //    */
+  //   mul: byte`\x7e`,
+  //   /**
+  //    * Signed integer division for i64.
+  //    * Pops 2 values, pushes (a / b) as i64.
+  //    * Traps if b = 0 or division overflows (e.g., INT64_MIN / -1).
+  //    */
+  //   div_s: byte`\x7f`,
+  //   /**
+  //    * Unsigned integer division for i64.
+  //    * Pops 2 values, pushes (a / b) as i64.
+  //    * Traps if b = 0.
+  //    */
+  //   div_u: byte`\x80`,
+  //   /**
+  //    * Signed integer remainder for i64.
+  //    * Pops 2 values, pushes (a % b) as i64.
+  //    * Traps if b = 0 or division overflows.
+  //    */
+  //   rem_s: byte`\x81`,
+  //   /**
+  //    * Unsigned integer remainder for i64.
+  //    * Pops 2 values, pushes (a % b) as i64.
+  //    * Traps if b = 0.
+  //    */
+  //   rem_u: byte`\x82`,
+  //   /**
+  //    * Bitwise AND for i64.
+  //    * Pops 2 values, pushes (a & b) as i64.
+  //    */
+  //   and: byte`\x83`,
+  //   /**
+  //    * Bitwise OR for i64.
+  //    * Pops 2 values, pushes (a | b) as i64.
+  //    */
+  //   or: byte`\x84`,
+  //   /**
+  //    * Bitwise XOR for i64.
+  //    * Pops 2 values, pushes (a ^ b) as i64.
+  //    */
+  //   xor: byte`\x85`,
+  //   /**
+  //    * Logical left shift for i64.
+  //    * Pops 2 values (a, b), pushes (a << (b % 64)) as i64.
+  //    */
+  //   shl: byte`\x86`,
+  //   /**
+  //    * Arithmetic right shift for i64 (sign-preserving).
+  //    * Pops 2 values (a, b), pushes (a >> (b % 64)) as i64.
+  //    */
+  //   shr_s: byte`\x87`,
+  //   /**
+  //    * Logical right shift for i64 (zero-filling).
+  //    * Pops 2 values (a, b), pushes (a >>> (b % 64)) as i64.
+  //    */
+  //   shr_u: byte`\x88`,
+  //   /**
+  //    * Bitwise rotate left for i64.
+  //    * Pops 2 values (a, b), rotates bits left by (b % 64) positions.
+  //    */
+  //   rotl: byte`\x89`,
+  //   /**
+  //    * Bitwise rotate right for i64.
+  //    * Pops 2 values (a, b), rotates bits right by (b % 64) positions.
+  //    */
+  //   rotr: byte`\x8a`,
+  //   /**
+  //    * Sign-extends i32 to i64.
+  //    * Pops 1 i32 value, pushes sign-extended i64.
+  //    */
+  //   extend_i32_s: byte`\xac`,
+  //   /**
+  //    * Zero-extends i32 to i64.
+  //    * Pops 1 i32 value, pushes zero-extended i64.
+  //    */
+  //   extend_i32_u: byte`\xad`,
+  //   /**
+  //    * Truncates f32 to signed i64.
+  //    * Pops 1 f32 value, pushes truncated integer as i64.
+  //    * Traps if value is NaN, ±infinity, or out of i64 range.
+  //    */
+  //   trunc_f32_s: byte`\xae`,
+  //   /**
+  //    * Truncates f32 to unsigned i64.
+  //    * Pops 1 f32 value, pushes truncated integer as i64.
+  //    * Traps if value is NaN, ±infinity, or out of u64 range.
+  //    */
+  //   trunc_f32_u: byte`\xaf`,
+  //   /**
+  //    * Truncates f64 to signed i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Traps if value is NaN, ±infinity, or out of i64 range.
+  //    */
+  //   trunc_f64_s: byte`\xb0`,
+  //   /**
+  //    * Truncates f64 to unsigned i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Traps if value is NaN, ±infinity, or out of u64 range.
+  //    */
+  //   trunc_f64_u: byte`\xb1`,
+  //   /**
+  //    * Reinterprets f64 bits as i64 (bitwise copy).
+  //    * Pops 1 value, pushes raw bits as i64.
+  //    */
+  //   reinterpret_f64: byte`\xbd`,
+  //   /**
+  //    * Sign-extends 8-bit value to 64-bit i64.
+  //    * Pops 1 value, treats low 8 bits as signed and extends.
+  //    */
+  //   extend8_s: byte`\xc2`,
+  //   /**
+  //    * Sign-extends 16-bit value to 64-bit i64.
+  //    * Pops 1 value, treats low 16 bits as signed and extends.
+  //    */
+  //   extend16_s: byte`\xc3`,
+  //   /**
+  //    * Sign-extends 32-bit value to 64-bit i64.
+  //    * Pops 1 value, treats low 32 bits as signed and extends.
+  //    */
+  //   extend32_s: byte`\xc4`,
+  //   /**
+  //    * Saturating truncation of f32 to signed i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+  //    */
+  //   trunc_sat_f32_s: byte`\xfc\x04`,
+  //   /**
+  //    * Saturating truncation of f32 to unsigned i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+  //    */
+  //   trunc_sat_f32_u: byte`\xfc\x05`,
+  //   /**
+  //    * Saturating truncation of f64 to signed i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Converts NaN/infinity/out-of-range values to INT64_MIN or INT64_MAX.
+  //    */
+  //   trunc_sat_f64_s: byte`\xfc\x06`,
+  //   /**
+  //    * Saturating truncation of f64 to unsigned i64.
+  //    * Pops 1 value, pushes truncated integer as i64.
+  //    * Converts NaN/infinity/out-of-range values to 0 or UINT64_MAX.
+  //    */
+  //   trunc_sat_f64_u: byte`\xfc\x07`,
+  // },
+  F32,
+  // {
+  //   /**
+  //    * Loads an f32 value from linear memory at the address popped from the stack.
+  //    * Requires 4-byte alignment. Traps on out-of-bounds or misalignment.
+  //    *   equires alignment byte and offset byte right after.
+  //    */
+  //   load: (offset = 0) => [byte`\x2a`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores an f32 value into linear memory at address popped from stack.
+  //    * Pops value then address. Requires 4-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store: (offset = 0) => [byte`\x38`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Pushes a 32-bit float constant onto the stack.
+  //    * The immediate value is encoded in IEEE 754 binary32 format.
+  //    */
+  //   const: (num = 0, type = "f32") => [byte`\x43`, encodeIEEE754(type, num)],
+  //   /**
+  //    * Floating-point equality comparison for f32.
+  //    * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   eq: byte`\x5b`,
+  //   /**
+  //    * Floating-point inequality comparison for f32.
+  //    * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 1).
+  //    */
+  //   ne: byte`\x5c`,
+  //   /**
+  //    * Floating-point less-than comparison for f32.
+  //    * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   lt: byte`\x5d`,
+  //   /**
+  //    * Floating-point greater-than comparison for f32.
+  //    * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   gt: byte`\x5e`,
+  //   /**
+  //    * Floating-point less-than-or-equal comparison for f32.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   le: byte`\x5f`,
+  //   /**
+  //    * Floating-point greater-than-or-equal comparison for f32.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   ge: byte`\x60`,
+  //   /**
+  //    * Absolute value for f32.
+  //    * Pops 1 value, pushes |a| as f32 (preserves NaN).
+  //    */
+  //   abs: byte`\x8b`,
+  //   /**
+  //    * Negation for f32.
+  //    * Pops 1 value, pushes -a as f32 (flips sign bit).
+  //    */
+  //   neg: byte`\x8c`,
+  //   /**
+  //    * Rounds f32 up to nearest integer.
+  //    * Pops 1 value, pushes ceil(a) as f32.
+  //    */
+  //   ceil: byte`\x8d`,
+  //   /**
+  //    * Rounds f32 down to nearest integer.
+  //    * Pops 1 value, pushes floor(a) as f32.
+  //    */
+  //   floor: byte`\x8e`,
+  //   /**
+  //    * Truncates f32 toward zero.
+  //    * Pops 1 value, pushes trunc(a) as f32.
+  //    */
+  //   trunc: byte`\x8f`,
+  //   /**
+  //    * Rounds f32 to nearest integer (ties to even).
+  //    * Pops 1 value, pushes rounded result as f32.
+  //    * Follows IEEE 754 rules (NaN → NaN).
+  //    */
+  //   nearest: byte`\x90`,
+  //   /**
+  //    * Computes square root of f32.
+  //    * Pops 1 value, pushes sqrt(a) as f32.
+  //    * Returns NaN for negative inputs.
+  //    */
+  //   sqrt: byte`\x91`,
+  //   /**
+  //    * Floating-point addition for f32.
+  //    * Pops 2 values, pushes (a + b) as f32.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   add: byte`\x92`,
+  //   /**
+  //    * Floating-point subtraction for f32.
+  //    * Pops 2 values, pushes (a - b) as f32.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   sub: byte`\x93`,
+  //   /**
+  //    * Floating-point multiplication for f32.
+  //    * Pops 2 values, pushes (a * b) as f32.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   mul: byte`\x94`,
+  //   /**
+  //    * Floating-point division for f32.
+  //    * Pops 2 values, pushes (a / b) as f32.
+  //    * Follows IEEE 754 rules (NaN/±infinity handling).
+  //    */
+  //   div: byte`\x95`,
+  //   /**
+  //    * Returns minimum of two f32 values.
+  //    * Pops 2 values, pushes min(a, b) as f32.
+  //    * Handles NaN and -0/+0 correctly per IEEE 754.
+  //    */
+  //   min: byte`\x96`,
+  //   /**
+  //    * Returns maximum of two f32 values.
+  //    * Pops 2 values, pushes max(a, b) as f32.
+  //    * Handles NaN and -0/+0 correctly per IEEE 754.
+  //    */
+  //   max: byte`\x97`,
+  //   /**
+  //    * Copies sign bit from b to a for f32.
+  //    * Pops 2 values, pushes (|a| with b's sign) as f32.
+  //    */
+  //   copysign: byte`\x98`,
+  //   /**
+  //    * Converts signed i32 to f32.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * May lose precision for large integers.
+  //    */
+  //   convert_i32_s: byte`\xb2`,
+  //   /**
+  //    * Converts unsigned i32 to f32.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * May lose precision for large integers.
+  //    */
+  //   convert_i32_u: byte`\xb3`,
+  //   /**
+  //    * Converts signed i64 to f32.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * Likely loses precision (f32 has 23-bit mantissa).
+  //    */
+  //   convert_i64_s: byte`\xb4`,
+  //   /**
+  //    * Converts unsigned i64 to f32.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * Likely loses precision (f32 has 23-bit mantissa).
+  //    */
+  //   convert_i64_u: byte`\xb5`,
+  //   /**
+  //    * Demotes f64 to f32 (loses precision).
+  //    * Pops 1 value, pushes f32 equivalent.
+  //    * Rounds to nearest representable f32 value.
+  //    */
+  //   demote_f64: byte`\xb6`,
+  //   /**
+  //    * Reinterprets i32 bits as f32 (bitwise copy).
+  //    * Pops 1 value, pushes raw bits as f32.
+  //    */
+  //   reinterpret_i32: byte`\xbe`,
+  // },
+  F64,
+  // {
+  //   /**
+  //    * Loads an f64 value from linear memory at the address popped from the stack.
+  //    * Requires 8-byte alignment. Traps on out-of-bounds or misalignment.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   load: (offset = 0) => [byte`\x2b`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores an f64 value into linear memory at address popped from stack.
+  //    * Pops value then address. Requires 8-byte alignment. Traps on out-of-bounds.
+  //    * Requires alignment byte and offset byte right after.
+  //    */
+  //   store: (offset = 0) => [byte`\x39`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Pushes a 64-bit float constant onto the stack.
+  //    * The immediate value is encoded in IEEE 754 binary64 format.
+  //    */
+  //   const: (num = 0, type = "f64") => [byte`\x44`, encodeIEEE754(type, num)],
+  //   /**
+  //    * Floating-point equality comparison for f64.
+  //    * Pops 2 values, pushes 1 if equal (ordered), else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   eq: byte`\x61`,
+  //   /**
+  //    * Floating-point inequality comparison for f64.
+  //    * Pops 2 values, pushes 1 if not equal (unordered or different), else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 1).
+  //    */
+  //   ne: byte`\x62`,
+  //   /**
+  //    * Floating-point less-than comparison for f64.
+  //    * Pops 2 values, pushes 1 if (a < b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   lt: byte`\x63`,
+  //   /**
+  //    * Floating-point greater-than comparison for f64.
+  //    * Pops 2 values, pushes 1 if (a > b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   gt: byte`\x64`,
+  //   /**
+  //    * Floating-point less-than-or-equal comparison for f64.
+  //    * Pops 2 values, pushes 1 if (a ≤ b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   le: byte`\x65`,
+  //   /**
+  //    * Floating-point greater-than-or-equal comparison for f64.
+  //    * Pops 2 values, pushes 1 if (a ≥ b) ordered, else 0 as i32.
+  //    * Follows IEEE 754 rules (NaN returns 0).
+  //    */
+  //   ge: byte`\x66`,
+  //   /**
+  //    * Absolute value for f64.
+  //    * Pops 1 value, pushes |a| as f64 (preserves NaN).
+  //    */
+  //   abs: byte`\x99`,
+  //   /**
+  //    * Negation for f64.
+  //    * Pops 1 value, pushes -a as f64 (flips sign bit).
+  //    */
+  //   neg: byte`\x9a`,
+  //   /**
+  //    * Rounds f64 up to nearest integer.
+  //    * Pops 1 value, pushes ceil(a) as f64.
+  //    */
+  //   ceil: byte`\x9b`,
+  //   /**
+  //    * Rounds f64 down to nearest integer.
+  //    * Pops 1 value, pushes floor(a) as f64.
+  //    */
+  //   floor: byte`\x9c`,
+  //   /**
+  //    * Truncates f64 toward zero.
+  //    * Pops 1 value, pushes trunc(a) as f64.
+  //    */
+  //   trunc: byte`\x9d`,
+  //   /**
+  //    * Rounds f64 to nearest integer (ties to even).
+  //    * Pops 1 value, pushes rounded result as f64.
+  //    * Follows IEEE 754 rules (NaN → NaN).
+  //    */
+  //   nearest: byte`\x9e`,
+  //   /**
+  //    * Computes square root of f64.
+  //    * Pops 1 value, pushes sqrt(a) as f64.
+  //    * Returns NaN for negative inputs.
+  //    */
+  //   sqrt: byte`\x9f`,
+  //   /**
+  //    * Floating-point addition for f64.
+  //    * Pops 2 values, pushes (a + b) as f64.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   add: byte`\xa0`,
+  //   /**
+  //    * Floating-point subtraction for f64.
+  //    * Pops 2 values, pushes (a - b) as f64.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   sub: byte`\xa1`,
+  //   /**
+  //    * Floating-point multiplication for f64.
+  //    * Pops 2 values, pushes (a * b) as f64.
+  //    * Follows IEEE 754 rules (NaN propagation).
+  //    */
+  //   mul: byte`\xa2`,
+  //   /**
+  //    * Floating-point division for f64.
+  //    * Pops 2 values, pushes (a / b) as f64.
+  //    * Follows IEEE 754 rules (NaN/±infinity handling).
+  //    */
+  //   div: byte`\xa3`,
+  //   /**
+  //    * Returns minimum of two f64 values.
+  //    * Pops 2 values, pushes min(a, b) as f64.
+  //    * Handles NaN and -0/+0 correctly per IEEE 754.
+  //    */
+  //   min: byte`\xa4`,
+  //   /**
+  //    * Returns maximum of two f64 values.
+  //    * Pops 2 values, pushes max(a, b) as f64.
+  //    * Handles NaN and -0/+0 correctly per IEEE 754.
+  //    */
+  //   max: byte`\xa5`,
+  //   /**
+  //    * Copies sign bit from b to a for f64.
+  //    * Pops 2 values, pushes (|a| with b's sign) as f64.
+  //    */
+  //   copysign: byte`\xa6`,
+  //   /**
+  //    * Converts signed i32 to f64.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * Exact conversion (no precision loss).
+  //    */
+  //   convert_i32_s: byte`\xb7`,
+  //   /**
+  //    * Converts unsigned i32 to f64.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * Exact conversion (no precision loss).
+  //    */
+  //   convert_i32_u: byte`\xb8`,
+  //   /**
+  //    * Converts signed i64 to f64.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * May lose precision (f64 has 52-bit mantissa).
+  //    */
+  //   convert_i64_s: byte`\xb9`,
+  //   /**
+  //    * Converts unsigned i64 to f64.
+  //    * Pops 1 value, pushes floating-point equivalent.
+  //    * May lose precision (f64 has 52-bit mantissa).
+  //    */
+  //   convert_i64_u: byte`\xba`,
+  //   /**
+  //    * Promotes f32 to f64 (exact conversion).
+  //    * Pops 1 value, pushes f64 equivalent.
+  //    */
+  //   promote_f32: byte`\xbb`,
+  //   /**
+  //    * Reinterprets i64 bits as f64 (bitwise copy).
+  //    * Pops 1 value, pushes raw bits as f64.
+  //    */
+  //   reinterpret_i64: byte`\xbf`,
+  // },
   ref: {
     /**
      * Pushes a null reference onto the stack.
@@ -1141,947 +1146,952 @@ export default {
      */
     func: (type) => [byte`\xd2`, type],
   },
-  V128: {
-    /**
-     * Loads a 128-bit vector from linear memory at the address popped from the stack.
-     * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
-     */
-    load: (offset = 0) => [byte`\xfd\x00`, 4, encodeLEB128("u32", offset)],
-    /**
-     * Loads 8 bytes from memory, sign-extends each byte to 16 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load8x8_s: (offset = 0) => [byte`\xfd\x01`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads 8 bytes from memory, zero-extends each byte to 16 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load8x8_u: (offset = 0) => [byte`\xfd\x02`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads 4 halfwords (16 bits) from memory, sign-extends each halfword to 32 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load16x4_s: (offset = 0) => [byte`\xfd\x03`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads 4 halfwords (16 bits) from memory, zero-extends each halfword to 32 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load16x4_u: (offset = 0) => [byte`\xfd\x04`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads 2 words (32 bits) from memory, sign-extends each word to 64 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load32x2_s: (offset = 0) => [byte`\xfd\x05`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads 2 words (32 bits) from memory, zero-extends each word to 64 bits, and packs into a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load32x2_u: (offset = 0) => [byte`\xfd\x06`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Loads a single byte from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-     * Pops address from stack. Requires 1-byte alignment.
-     */
-    load8_splat: (offset = 0) => [byte`\xfd\x07`, 0, encodeLEB128("u32", offset)],
-    /**
-     * Loads a single halfword (16 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-     * Pops address from stack. Requires 2-byte alignment.
-     */
-    load16_splat: (offset = 0) => [byte`\xfd\x08`, 1, encodeLEB128("u32", offset)],
-    /**
-     * Loads a single word (32 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
-     * Pops address from stack. Requires 4-byte alignment.
-     */
-    load32_splat: (offset = 0) => [byte`\xfd\x09`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Loads a single doubleword (64 bits) from memory and splats it across all lanes of a 128-bit vector.
-     * Pops address from stack. Requires 8-byte alignment.
-     */
-    load64_splat: (offset = 0) => [byte`\xfd\x0a`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Stores a 128-bit vector into linear memory at the address popped from the stack.
-     * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
-     */
-    store: (offset = 0) => [byte`\xfd\x0b`, 4, encodeLEB128("u32", offset)],
-    /**
-     * Performs a bitwise NOT operation on a 128-bit vector.
-     * Pops one vector and pushes the result of flipping all bits.
-     */
-    not: byte`\xfd\x4d`,
-    /**
-     * Performs a bitwise AND operation on two 128-bit vectors.
-     * Pops two vectors and pushes the result of `(a & b)`.
-     */
-    and: byte`\xfd\x4e`,
-    /**
-     * Performs a bitwise AND-NOT operation on two 128-bit vectors.
-     * Pops two vectors and pushes the result of `(a & ~b)`.
-     */
-    andnot: byte`\xfd\x4f`,
-    /**
-     * Performs a bitwise OR operation on two 128-bit vectors.
-     * Pops two vectors and pushes the result of `(a | b)`.
-     */
-    or: byte`\xfd\x50`,
-    /**
-     * Performs a bitwise XOR operation on two 128-bit vectors.
-     * Pops two vectors and pushes the result of `(a ^ b)`.
-     */
-    xor: byte`\xfd\x51`,
-    /**
-     * Selects bits from two vectors based on a mask vector.
-     * Pops three vectors: mask, true_vector, false_vector.
-     * For each bit in the mask, selects the corresponding bit from `true_vector` if the mask bit is `1`, otherwise from `false_vector`.
-     */
-    bitselect: byte`\xfd\x52`,
-    /**
-     * Checks if any lane in a 128-bit vector is non-zero.
-     * Pops one vector and pushes `1` (true) if any lane is non-zero, or `0` (false) otherwise.
-     */
-    any_true: byte`\xfd\x53`,
-    /**
-     * Loads a single byte from memory into a specific lane of a 128-bit vector.
-     * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
-     */
-    load8_lane: (lane, offset = 0) => [byte`\xfd\x54`, 0, encodeLEB128("u32", offset), lane],
-    /**
-     * Loads a single halfword (16 bits) from memory into a specific lane of a 128-bit vector.
-     * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
-     */
-    load16_lane: (lane, offset = 0) => [byte`\xfd\x55`, 1, encodeLEB128("u32", offset), lane],
-    /**
-     * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
-     * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
-     */
-    load32_lane: (lane, offset = 0) => [byte`\xfd\x56`, 2, encodeLEB128("u32", offset), lane],
-    /**
-     * Loads a single doubleword (64 bits) from memory into a specific lane of a 128-bit vector.
-     * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
-     */
-    load64_lane: (lane, offset = 0) => [byte`\xfd\x57`, 3, encodeLEB128("u32", offset), lane],
-    /**
-     * Stores a single byte from a specific lane of a 128-bit vector into memory.
-     * Pops an address and a vector, writes the specified lane's byte to memory.
-     */
-    store8_lane: (lane, offset = 0) => [byte`\xfd\x58`, 0 , encodeLEB128("u32", offset), lane],
-    /**
-     * Stores a single halfword (16 bits) from a specific lane of a 128-bit vector into memory.
-     * Pops an address and a vector, writes the specified lane's halfword to memory.
-     */
-    store16_lane: (lane, offset = 0) => [byte`\xfd\x59`, 1 , encodeLEB128("u32", offset), lane],
-    /**
-     * Stores a single word (32 bits) from a specific lane of a 128-bit vector into memory.
-     * Pops an address and a vector, writes the specified lane's word to memory.
-     */
-    store32_lane: (lane, offset = 0) => [byte`\xfd\x5a`, 2 , encodeLEB128("u32", offset), lane],
-    /**
-     * Stores a single doubleword (64 bits) from a specific lane of a 128-bit vector into memory.
-     * Pops an address and a vector, writes the specified lane's doubleword to memory.
-     */
-    store64_lane: (lane, offset = 0) => [byte`\xfd\x5b`, 3, encodeLEB128("u32", offset), lane],
-    /**
-     * Loads a single word (32 bits) from memory and zero-extends it into a 128-bit vector.
-     * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
-     */
-    load32_zero: (offset = 0) => [byte`\xfd\x5c`, 2, encodeLEB128("u32", offset)],
-    /**
-     * Loads a single doubleword (64 bits) from memory and zero-extends it into a 128-bit vector.
-     * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
-     */
-    load64_zero: (offset = 0) => [byte`\xfd\x5d`, 3, encodeLEB128("u32", offset)],
-    /**
-     * Pushes a 128-bit constant vector onto the stack.
-     * The immediate value is encoded as a literal 128-bit value.
-     */
-    const: (val = 0) => [byte`\xfd\x0c`, encode_v128(val)],
-  },
-  I8x16: {
-    /**
-     * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
-     * Pops two vectors and uses a 16-byte immediate mask to produce the result.
-     */
-    shuffle: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0d`, vals]),
-    /**
-     * Swizzles the first vector using indices from the second vector.
-     * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
-     */
-    swizzle: byte`\xfd\x0e`,
-    /**
-     * Creates a 128-bit vector by replicating an 8-bit integer across all lanes.
-     * Pops 1 value and splats it across all 16 lanes of the vector.
-     */
-    splat: byte`\xfd\x0f`,
-    /**
-     * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
-     */
-    extract_lane_s: (index) => [byte`\xfd\x15`, index],
-    /**
-     * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
-     */
-    extract_lane_u: (index) => [byte`\xfd\x16`, index],
-    /**
-     * Replaces a specific lane in a 128-bit vector with a new value.
-     * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-     */
-    replace_lane: (index) => [byte`\xfd\x17`, index],
-    /**
-     * Compares two 128-bit vectors for equality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
-     */
-    eq: byte`\xfd\x23`,
-    /**
-     * Compares two 128-bit vectors for inequality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if not equal, or `0x00` otherwise.
-     */
-    ne: byte`\xfd\x24`,
-    /**
-     * Compares two 128-bit vectors for signed less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
-     */
-    lt_s: byte`\xfd\x25`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
-     */
-    lt_u: byte`\xfd\x26`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
-     */
-    gt_s: byte`\xfd\x27`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
-     */
-    gt_u: byte`\xfd\x28`,
-    /**
-     * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
-     */
-    le_s: byte`\xfd\x29`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
-     */
-    le_u: byte`\xfd\x2a`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
-     */
-    ge_s: byte`\xfd\x2b`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
-     */
-    ge_u: byte`\xfd\x2c`,
-    /**
-     * Computes the absolute value of each lane in an `i8x16` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-     */
-    abs: byte`\xfd\x60`,
-    /**
-     * Negates each lane in an `i8x16` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-     */
-    neg: byte`\xfd\x61`,
-    /**
-     * Counts the number of set bits (1s) in each lane of an `i8x16` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by the population count of the original lane.
-     */
-    popcnt: byte`\xfd\x62`,
-    /**
-     * Checks if all lanes in an `i8x16` vector are non-zero.
-     * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-     */
-    all_true: byte`\xfd\x63`,
-    /**
-     * Creates a bitmask from an `i8x16` vector.
-     * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-     */
-    bitmask: byte`\xfd\x64`,
-    /**
-     * Narrows an `i16x8` vector to an `i8x16` vector using signed saturation.
-     * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
-     */
-    narrow_i16x8_s: byte`\xfd\x65`,
-    /**
-     * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
-     * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
-     */
-    narrow_i16x8_u: byte`\xfd\x66`,
-    /**
-     * Performs a bitwise left shift on each lane of an `i8x16` vector.
-     * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-     */
-    shl: byte`\xfd\x6b`,
-    /**
-     * Performs an arithmetic right shift on each lane of an `i8x16` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-     */
-    shr_s: byte`\xfd\x6c`,
-    /**
-     * Performs a logical right shift on each lane of an `i8x16` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-     */
-    shr_u: byte`\xfd\x6d`,
-    /**
-     * Adds corresponding lanes of two `i8x16` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-     */
-    add: byte`\xfd\x6e`,
-    /**
-     * Adds corresponding lanes of two `i8x16` vectors using signed saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
-     */
-    add_sat_s: byte`\xfd\x6f`,
-    /**
-     * Adds corresponding lanes of two `i8x16` vectors using unsigned saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
-     */
-    add_sat_u: byte`\xfd\x70`,
-    /**
-     * Subtracts corresponding lanes of two `i8x16` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-     */
-    sub: byte`\xfd\x71`,
-    /**
-     * Subtracts corresponding lanes of two `i8x16` vectors using signed saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
-     */
-    sub_sat_s: byte`\xfd\x72`,
-    /**
-     * Subtracts corresponding lanes of two `i8x16` vectors using unsigned saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
-     */
-    sub_sat_u: byte`\xfd\x73`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i8x16` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_s: byte`\xfd\x76`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_u: byte`\xfd\x77`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i8x16` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_s: byte`\xfd\x78`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_u: byte`\xfd\x79`,
-    /**
-     * Computes the unsigned average (rounded) of corresponding lanes of two `i8x16` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
-     */
-    avgr_u: byte`\xfd\x7b`,
-    /**
-     * Pushes a 128-bit constant vector onto the stack.
-     * The immediate value is encoded as a vector of 16 8-bit values.
-     */
-    const: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0c`, encode_v128(vals)]),
-  },
-  I16x8: {
-    /**
-     * Creates a 128-bit vector by replicating a 16-bit integer across all lanes.
-     * Pops 1 value and splats it across all 8 lanes of the vector.
-     */
-    splat: byte`\xfd\x10`,
-    /**
-     * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
-     */
-    extract_lane_s: (index) => [byte`\xfd\x18`, index],
-    /**
-     * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
-     */
-    extract_lane_u: (index) => [byte`\xfd\x19`, index],
-    /**
-     * Replaces a specific lane in a 128-bit vector with a new value.
-     * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-     */
-    replace_lane: (index) => [byte`\xfd\x1a`, index],
-    /**
-     * Compares two 128-bit vectors for equality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
-     */
-    eq: byte`\xfd\x2d`,
-    /**
-     * Compares two 128-bit vectors for inequality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
-     */
-    ne: byte`\xfd\x2e`,
-    /**
-     * Compares two 128-bit vectors for signed less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
-     */
-    lt_s: byte`\xfd\x2f`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
-     */
-    lt_u: byte`\xfd\x30`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
-     */
-    gt_s: byte`\xfd\x31`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
-     */
-    gt_u: byte`\xfd\x32`,
-    /**
-     * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
-     */
-    le_s: byte`\xfd\x33`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
-     */
-    le_u: byte`\xfd\x34`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
-     */
-    ge_s: byte`\xfd\x35`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
-     */
-    ge_u: byte`\xfd\x36`,
-    /**
-     * Adds adjacent pairs of lanes in an `i8x16` vector using signed addition, producing an `i16x8` vector.
-     * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-     */
-    extadd_pairwise_i8x16_s: byte`\xfd\x7c`,
-    /**
-     * Adds adjacent pairs of lanes in an `i8x16` vector using unsigned addition, producing an `i16x8` vector.
-     * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-     */
-    extadd_pairwise_i8x16_u: byte`\xfd\x7d`,
-    /**
-     * Adds adjacent pairs of lanes in an `i16x8` vector using signed addition, producing an `i32x4` vector.
-     * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-     */
-    extadd_pairwise_i16x8_s: byte`\xfd\x7e`,
-    /**
-     * Adds adjacent pairs of lanes in an `i16x8` vector using unsigned addition, producing an `i32x4` vector.
-     * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
-     */
-    extadd_pairwise_i16x8_u: byte`\xfd\x7f`,
-    /**
-     * Computes the absolute value of each lane in an `i16x8` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-     */
-    abs: byte`\xfd\x80\x01`,
-    /**
-     * Negates each lane in an `i16x8` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-     */
-    neg: byte`\xfd\x81\x01`,
-    /**
-     * Performs a signed Q15 multiplication with rounding and saturation on each lane of two `i16x8` vectors.
-     * Pops two vectors and pushes a new vector where each lane is `(a * b + 0x4000) >> 15`, saturated to the range of `i16`.
-     */
-    q15mulr_sat_s: byte`\xfd\x82\x01`,
-    /**
-     * Checks if all lanes in an `i16x8` vector are non-zero.
-     * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-     */
-    all_true: byte`\xfd\x83\x01`,
-    /**
-     * Creates a bitmask from an `i16x8` vector.
-     * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-     */
-    bitmask: byte`\xfd\x84\x01`,
-    /**
-     * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
-     * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `i16`.
-     */
-    narrow_i32x4_s: byte`\xfd\x85\x01`,
-    /**
-     * Narrows an `i32x4` vector to an `i16x8` vector using unsigned saturation.
-     * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `u16`.
-     */
-    narrow_i32x4_u: byte`\xfd\x86\x01`,
-    /**
-     * Extends the low 8 lanes of an `i8x16` vector to 16 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
-     */
-    extend_low_i8x16_s: byte`\xfd\x87\x01`,
-    /**
-     * Extends the high 8 lanes of an `i8x16` vector to 16 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
-     */
-    extend_high_i8x16_s: byte`\xfd\x88\x01`,
-    /**
-     * Extends the low 8 lanes of an `i8x16` vector to 16 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
-     */
-    extend_low_i8x16_u: byte`\xfd\x89\x01`,
-    /**
-     * Extends the high 8 lanes of an `i8x16` vector to 16 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
-     */
-    extend_high_i8x16_u: byte`\xfd\x8a\x01`,
-    /**
-     * Performs a bitwise left shift on each lane of an `i16x8` vector.
-     * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-     */
-    shl: byte`\xfd\x8b\x01`,
-    /**
-     * Performs an arithmetic right shift on each lane of an `i16x8` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-     */
-    shr_s: byte`\xfd\x8c\x01`,
-    /**
-     * Performs a logical right shift on each lane of an `i16x8` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-     */
-    shr_u: byte`\xfd\x8d\x01`,
-    /**
-     * Adds corresponding lanes of two `i16x8` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-     */
-    add: byte`\xfd\x8e\x01`,
-    /**
-     * Adds corresponding lanes of two `i16x8` vectors using signed saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
-     */
-    add_sat_s: byte`\xfd\x8f\x01`,
-    /**
-     * Adds corresponding lanes of two `i16x8` vectors using unsigned saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
-     */
-    add_sat_u: byte`\xfd\x90\x01`,
-    /**
-     * Subtracts corresponding lanes of two `i16x8` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-     */
-    sub: byte`\xfd\x91\x01`,
-    /**
-     * Subtracts corresponding lanes of two `i16x8` vectors using signed saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
-     */
-    sub_sat_s: byte`\xfd\x92\x01`,
-    /**
-     * Subtracts corresponding lanes of two `i16x8` vectors using unsigned saturation.
-     * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
-     */
-    sub_sat_u: byte`\xfd\x93\x01`,
-    /**
-     * Multiplies corresponding lanes of two `i16x8` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
-     */
-    mul: byte`\xfd\x95\x01`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i16x8` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_s: byte`\xfd\x96\x01`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_u: byte`\xfd\x97\x01`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i16x8` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_s: byte`\xfd\x98\x01`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_u: byte`\xfd\x99\x01`,
-    /**
-     * Computes the unsigned average (rounded) of corresponding lanes of two `i16x8` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
-     */
-    avgr_u: byte`\xfd\x9b\x01`,
-    /**
-     * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
-     */
-    extmul_low_i8x16_s: byte`\xfd\x9c\x01`,
-    /**
-     * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
-     */
-    extmul_high_i8x16_s: byte`\xfd\x9d\x01`,
-    /**
-     * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
-     */
-    extmul_low_i8x16_u: byte`\xfd\x9e\x01`,
-    /**
-     * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
-     */
-    extmul_high_i8x16_u: byte`\xfd\x9f\x01`,
-    /**
-     * Pushes a 128-bit constant vector onto the stack.
-     * The immediate value is encoded as a vector of 8 16-bit values.
-     */
-    const: (...vals) => (console.assert(vals.length === 8), [byte`\xfd\x0c`, encode_v128(vals)]),
-  },
-  I32x4: {
-    /**
-     * Creates a 128-bit vector by replicating a 32-bit integer across all lanes.
-     * Pops 1 value and splats it across all 4 lanes of the vector.
-     */
-    splat: byte`\xfd\x11`,
-    /**
-     * Extracts a 32-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i32.
-     */
-    extract_lane: (index) => [byte`\xfd\x1b`, index],
-    /**
-     * Replaces a specific lane in a 128-bit vector with a new value.
-     * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-     */
-    replace_lane: (index) => [byte`\xfd\x1c`, index],
-    /**
-     * Compares two 128-bit vectors for equality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
-     */
-    eq: byte`\xfd\x37`,
-    /**
-     * Compares two 128-bit vectors for inequality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if not equal, or `0x00000000` otherwise.
-     */
-    ne: byte`\xfd\x38`,
-    /**
-     * Compares two 128-bit vectors for signed less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
-     */
-    lt_s: byte`\xfd\x39`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
-     */
-    lt_u: byte`\xfd\x3a`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
-     */
-    gt_s: byte`\xfd\x3b`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
-     */
-    gt_u: byte`\xfd\x3c`,
-    /**
-     * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
-     */
-    le_s: byte`\xfd\x3d`,
-    /**
-     * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
-     */
-    le_u: byte`\xfd\x3e`,
-    /**
-     * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
-     */
-    ge_s: byte`\xfd\x3f`,
-    /**
-     * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
-     */
-    ge_u: byte`\xfd\x40`,
-    /**
-     * Computes the absolute value of each lane in an `i32x4` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-     */
-    abs: byte`\xfd\xa0\x01`,
-    /**
-     * Negates each lane in an `i32x4` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-     */
-    neg: byte`\xfd\xa1\x01`,
-    /**
-     * Checks if all lanes in an `i32x4` vector are non-zero.
-     * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-     */
-    all_true: byte`\xfd\xa3\x01`,
-    /**
-     * Creates a bitmask from an `i32x4` vector.
-     * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-     */
-    bitmask: byte`\xfd\xa4\x01`,
-    /**
-     * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
-     */
-    extend_low_i16x8_s: byte`\xfd\xa7\x01`,
-    /**
-     * Extends the high 4 lanes of an `i16x8` vector to 32 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
-     */
-    extend_high_i16x8_s: byte`\xfd\xa8\x01`,
-    /**
-     * Extends the low 4 lanes of an `i16x8` vector to 32 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
-     */
-    extend_low_i16x8_u: byte`\xfd\xa9\x01`,
-    /**
-     * Extends the high 4 lanes of an `i16x8` vector to 32 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
-     */
-    extend_high_i16x8_u: byte`\xfd\xaa\x01`,
-    /**
-     * Performs a bitwise left shift on each lane of an `i32x4` vector.
-     * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-     */
-    shl: byte`\xfd\xab\x01`,
-    /**
-     * Performs an arithmetic right shift on each lane of an `i32x4` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-     */
-    shr_s: byte`\xfd\xac\x01`,
-    /**
-     * Performs a logical right shift on each lane of an `i32x4` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-     */
-    shr_u: byte`\xfd\xad\x01`,
-    /**
-     * Adds corresponding lanes of two `i32x4` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-     */
-    add: byte`\xfd\xae\x01`,
-    /**
-     * Subtracts corresponding lanes of two `i32x4` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-     */
-    sub: byte`\xfd\xb1\x01`,
-    /**
-     * Multiplies corresponding lanes of two `i32x4` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
-     */
-    mul: byte`\xfd\xb5\x01`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i32x4` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_s: byte`\xfd\xb6\x01`,
-    /**
-     * Computes the minimum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
-     */
-    min_u: byte`\xfd\xb7\x01`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i32x4` vectors using signed comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_s: byte`\xfd\xb8\x01`,
-    /**
-     * Computes the maximum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
-     * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
-     */
-    max_u: byte`\xfd\xb9\x01`,
-    /**
-     * Computes the dot product of two `i16x8` vectors, producing an `i32x4` vector.
-     * Pops two vectors, computes the dot product of adjacent pairs of lanes, and pushes the result as an `i32x4` vector.
-     */
-    dot_i16x8_s: byte`\xfd\xba\x01`,
-    /**
-     * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
-     */
-    extmul_low_i16x8_s: byte`\xfd\xbb\x01`,
-    /**
-     * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
-     */
-    extmul_high_i16x8_s: byte`\xfd\xbc\x01`,
-    /**
-     * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
-     */
-    extmul_low_i16x8_u: byte`\xfd\xbd\x01`,
-    /**
-     * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
-     */
-    extmul_high_i16x8_u: byte`\xfd\xbe\x01`,
-    /**
-     * Converts each lane of an `f32x4` vector to a signed `i32x4` vector using saturation.
-     * Pops one vector and pushes a new vector where each lane is truncated to `i32` with saturation if the result exceeds the range of `i32`.
-     */
-    trunc_sat_f32x4_s: byte`\xfd\xf8\x01`,
-    /**
-     * Converts each lane of an `f32x4` vector to an unsigned `i32x4` vector using saturation.
-     * Pops one vector and pushes a new vector where each lane is truncated to `u32` with saturation if the result exceeds the range of `u32`.
-     */
-    trunc_sat_f32x4_u: byte`\xfd\xf9\x01`,
-    /**
-     * Converts the low two lanes of an `f64x2` vector to a signed `i32x4` vector using saturation.
-     * Pops one vector and pushes a new vector where the low two lanes are truncated to `i32` with saturation, and the high two lanes are zeroed.
-     */
-    trunc_sat_f64x2_s_zero: byte`\xfd\xfc\x01`,
-    /**
-     * Converts the low two lanes of an `f64x2` vector to an unsigned `i32x4` vector using saturation.
-     * Pops one vector and pushes a new vector where the low two lanes are truncated to `u32` with saturation, and the high two lanes are zeroed.
-     */
-    trunc_sat_f64x2_u_zero: byte`\xfd\xfd\x01`,
-    /**
-     * Pushes a 128-bit constant vector onto the stack.
-     * The immediate value is encoded as a vector of 4 32-bit values.
-     */
-    const: (...vals) => (console.assert(vals.length === 4), [byte`\xfd\x0c`, encode_v128(vals)]),
-  },
-  I64x2: {
-    /**
-     * Creates a 128-bit vector by replicating a 64-bit integer across all lanes.
-     * Pops 1 value and splats it across all 2 lanes of the vector.
-     */
-    splat: byte`\xfd\x12`,
-    /**
-     * Extracts a 64-bit integer from a specific lane of a 128-bit vector.
-     * Pops a vector and pushes the extracted lane value as an i64.
-     */
-    extract_lane: (index) => [byte`\xfd\x1d`, index],
-    /**
-     * Replaces a specific lane in a 128-bit vector with a new value.
-     * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
-     */
-    replace_lane: (index) => [byte`\xfd\x1e`, index],
-    /**
-     * Computes the absolute value of each lane in an `i64x2` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
-     */
-    abs: byte`\xfd\xc0\x01`,
-    /**
-     * Negates each lane in an `i64x2` vector.
-     * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
-     */
-    neg: byte`\xfd\xc1\x01`,
-    /**
-     * Checks if all lanes in an `i64x2` vector are non-zero.
-     * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
-     */
-    all_true: byte`\xfd\xc3\x01`,
-    /**
-     * Creates a bitmask from an `i64x2` vector.
-     * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
-     */
-    bitmask: byte`\xfd\xc4\x01`,
-    /**
-     * Extends the low 2 lanes of an `i32x4` vector to 64 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
-     */
-    extend_low_i32x4_s: byte`\xfd\xc7\x01`,
-    /**
-     * Extends the high 2 lanes of an `i32x4` vector to 64 bits using signed extension.
-     * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
-     */
-    extend_high_i32x4_s: byte`\xfd\xc8\x01`,
-    /**
-     * Extends the low 2 lanes of an `i32x4` vector to 64 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
-     */
-    extend_low_i32x4_u: byte`\xfd\xc9\x01`,
-    /**
-     * Extends the high 2 lanes of an `i32x4` vector to 64 bits using zero extension.
-     * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
-     */
-    extend_high_i32x4_u: byte`\xfd\xca\x01`,
-    /**
-     * Performs a bitwise left shift on each lane of an `i64x2` vector.
-     * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
-     */
-    shl: byte`\xfd\xcb\x01`,
-    /**
-     * Performs an arithmetic right shift on each lane of an `i64x2` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
-     */
-    shr_s: byte`\xfd\xcc\x01`,
-    /**
-     * Performs a logical right shift on each lane of an `i64x2` vector.
-     * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
-     */
-    shr_u: byte`\xfd\xcd\x01`,
-    /**
-     * Adds corresponding lanes of two `i64x2` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
-     */
-    add: byte`\xfd\xce\x01`,
-    /**
-     * Subtracts corresponding lanes of two `i64x2` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
-     */
-    sub: byte`\xfd\xd1\x01`,
-    /**
-     * Multiplies corresponding lanes of two `i64x2` vectors.
-     * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
-     */
-    mul: byte`\xfd\xd5\x01`,
-    /**
-     * Compares two `i64x2` vectors for equality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if equal, or `0x0000000000000000` otherwise.
-     */
-    eq: byte`\xfd\xd6\x01`,
-    /**
-     * Compares two `i64x2` vectors for inequality (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if not equal, or `0x0000000000000000` otherwise.
-     */
-    ne: byte`\xfd\xd7\x01`,
-    /**
-     * Compares two `i64x2` vectors for signed less-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a < b)`, or `0x0000000000000000` otherwise.
-     */
-    lt_s: byte`\xfd\xd8\x01`,
-    /**
-     * Compares two `i64x2` vectors for signed greater-than (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a > b)`, or `0x0000000000000000` otherwise.
-     */
-    gt_s: byte`\xfd\xd9\x01`,
-    /**
-     * Compares two `i64x2` vectors for signed less-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≤ b)`, or `0x0000000000000000` otherwise.
-     */
-    le_s: byte`\xfd\xda\x01`,
-    /**
-     * Compares two `i64x2` vectors for signed greater-than-or-equal (per-lane).
-     * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≥ b)`, or `0x0000000000000000` otherwise.
-     */
-    ge_s: byte`\xfd\xdb\x01`,
-    /**
-     * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
-     */
-    extmul_low_i32x4_s: byte`\xfd\xdc\x01`,
-    /**
-     * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
-     * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
-     */
-    extmul_high_i32x4_s: byte`\xfd\xdd\x01`,
-    /**
-     * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
-     */
-    extmul_low_i32x4_u: byte`\xfd\xde\x01`,
-    /**
-     * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
-     * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
-     */
-    extmul_high_i32x4_u: byte`\xfd\xdf\x01`,
-    /**
-     * Pushes a 128-bit constant vector onto the stack.
-     * The immediate value is encoded as a vector of 2 64-bit values.
-     */
-    const: (...vals) => (console.assert(vals.length === 2), [byte`\xfd\x0c`, encode_v128(vals)]),
-  },
+  V128,
+  // {
+  //   /**
+  //    * Loads a 128-bit vector from linear memory at the address popped from the stack.
+  //    * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
+  //    */
+  //   load: (offset = 0) => [byte`\xfd\x00`, 4, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 8 bytes from memory, sign-extends each byte to 16 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load8x8_s: (offset = 0) => [byte`\xfd\x01`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 8 bytes from memory, zero-extends each byte to 16 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load8x8_u: (offset = 0) => [byte`\xfd\x02`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 4 halfwords (16 bits) from memory, sign-extends each halfword to 32 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load16x4_s: (offset = 0) => [byte`\xfd\x03`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 4 halfwords (16 bits) from memory, zero-extends each halfword to 32 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load16x4_u: (offset = 0) => [byte`\xfd\x04`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 2 words (32 bits) from memory, sign-extends each word to 64 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load32x2_s: (offset = 0) => [byte`\xfd\x05`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads 2 words (32 bits) from memory, zero-extends each word to 64 bits, and packs into a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load32x2_u: (offset = 0) => [byte`\xfd\x06`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a single byte from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+  //    * Pops address from stack. Requires 1-byte alignment.
+  //    */
+  //   load8_splat: (offset = 0) => [byte`\xfd\x07`, 0, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a single halfword (16 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+  //    * Pops address from stack. Requires 2-byte alignment.
+  //    */
+  //   load16_splat: (offset = 0) => [byte`\xfd\x08`, 1, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a single word (32 bits) from memory, sign-extends it, and splats across all lanes of a 128-bit vector.
+  //    * Pops address from stack. Requires 4-byte alignment.
+  //    */
+  //   load32_splat: (offset = 0) => [byte`\xfd\x09`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a single doubleword (64 bits) from memory and splats it across all lanes of a 128-bit vector.
+  //    * Pops address from stack. Requires 8-byte alignment.
+  //    */
+  //   load64_splat: (offset = 0) => [byte`\xfd\x0a`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Stores a 128-bit vector into linear memory at the address popped from the stack.
+  //    * Requires 16-byte alignment. Traps on out-of-bounds or misalignment.
+  //    */
+  //   store: (offset = 0) => [byte`\xfd\x0b`, 4, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Performs a bitwise NOT operation on a 128-bit vector.
+  //    * Pops one vector and pushes the result of flipping all bits.
+  //    */
+  //   not: byte`\xfd\x4d`,
+  //   /**
+  //    * Performs a bitwise AND operation on two 128-bit vectors.
+  //    * Pops two vectors and pushes the result of `(a & b)`.
+  //    */
+  //   and: byte`\xfd\x4e`,
+  //   /**
+  //    * Performs a bitwise AND-NOT operation on two 128-bit vectors.
+  //    * Pops two vectors and pushes the result of `(a & ~b)`.
+  //    */
+  //   andnot: byte`\xfd\x4f`,
+  //   /**
+  //    * Performs a bitwise OR operation on two 128-bit vectors.
+  //    * Pops two vectors and pushes the result of `(a | b)`.
+  //    */
+  //   or: byte`\xfd\x50`,
+  //   /**
+  //    * Performs a bitwise XOR operation on two 128-bit vectors.
+  //    * Pops two vectors and pushes the result of `(a ^ b)`.
+  //    */
+  //   xor: byte`\xfd\x51`,
+  //   /**
+  //    * Selects bits from two vectors based on a mask vector.
+  //    * Pops three vectors: mask, true_vector, false_vector.
+  //    * For each bit in the mask, selects the corresponding bit from `true_vector` if the mask bit is `1`, otherwise from `false_vector`.
+  //    */
+  //   bitselect: byte`\xfd\x52`,
+  //   /**
+  //    * Checks if any lane in a 128-bit vector is non-zero.
+  //    * Pops one vector and pushes `1` (true) if any lane is non-zero, or `0` (false) otherwise.
+  //    */
+  //   any_true: byte`\xfd\x53`,
+  //   /**
+  //    * Loads a single byte from memory into a specific lane of a 128-bit vector.
+  //    * Pops an address and a vector, replaces the specified lane with the loaded byte, and pushes the updated vector.
+  //    */
+  //   load8_lane: (lane, offset = 0) => [byte`\xfd\x54`, 0, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Loads a single halfword (16 bits) from memory into a specific lane of a 128-bit vector.
+  //    * Pops an address and a vector, replaces the specified lane with the loaded halfword, and pushes the updated vector.
+  //    */
+  //   load16_lane: (lane, offset = 0) => [byte`\xfd\x55`, 1, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Loads a single word (32 bits) from memory into a specific lane of a 128-bit vector.
+  //    * Pops an address and a vector, replaces the specified lane with the loaded word, and pushes the updated vector.
+  //    */
+  //   load32_lane: (lane, offset = 0) => [byte`\xfd\x56`, 2, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Loads a single doubleword (64 bits) from memory into a specific lane of a 128-bit vector.
+  //    * Pops an address and a vector, replaces the specified lane with the loaded doubleword, and pushes the updated vector.
+  //    */
+  //   load64_lane: (lane, offset = 0) => [byte`\xfd\x57`, 3, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Stores a single byte from a specific lane of a 128-bit vector into memory.
+  //    * Pops an address and a vector, writes the specified lane's byte to memory.
+  //    */
+  //   store8_lane: (lane, offset = 0) => [byte`\xfd\x58`, 0, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Stores a single halfword (16 bits) from a specific lane of a 128-bit vector into memory.
+  //    * Pops an address and a vector, writes the specified lane's halfword to memory.
+  //    */
+  //   store16_lane: (lane, offset = 0) => [byte`\xfd\x59`, 1, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Stores a single word (32 bits) from a specific lane of a 128-bit vector into memory.
+  //    * Pops an address and a vector, writes the specified lane's word to memory.
+  //    */
+  //   store32_lane: (lane, offset = 0) => [byte`\xfd\x5a`, 2, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Stores a single doubleword (64 bits) from a specific lane of a 128-bit vector into memory.
+  //    * Pops an address and a vector, writes the specified lane's doubleword to memory.
+  //    */
+  //   store64_lane: (lane, offset = 0) => [byte`\xfd\x5b`, 3, encodeLEB128("u32", offset), lane],
+  //   /**
+  //    * Loads a single word (32 bits) from memory and zero-extends it into a 128-bit vector.
+  //    * Pops an address and pushes a new vector where the low 32 bits are loaded from memory, and the rest are zeroed.
+  //    */
+  //   load32_zero: (offset = 0) => [byte`\xfd\x5c`, 2, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Loads a single doubleword (64 bits) from memory and zero-extends it into a 128-bit vector.
+  //    * Pops an address and pushes a new vector where the low 64 bits are loaded from memory, and the rest are zeroed.
+  //    */
+  //   load64_zero: (offset = 0) => [byte`\xfd\x5d`, 3, encodeLEB128("u32", offset)],
+  //   /**
+  //    * Pushes a 128-bit constant vector onto the stack.
+  //    * The immediate value is encoded as a literal 128-bit value.
+  //    */
+  //   const: (val = 0) => [byte`\xfd\x0c`, encode_v128(val)],
+  // },
+  I8x16,
+  // {
+  //   /**
+  //    * Shuffles two 128-bit vectors into a new 128-bit vector based on an 8-bit shuffle mask.
+  //    * Pops two vectors and uses a 16-byte immediate mask to produce the result.
+  //    */
+  //   shuffle: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0d`, vals]),
+  //   /**
+  //    * Swizzles the first vector using indices from the second vector.
+  //    * Pops two vectors and produces a new vector where each lane is selected by the corresponding index in the second vector.
+  //    */
+  //   swizzle: byte`\xfd\x0e`,
+  //   /**
+  //    * Creates a 128-bit vector by replicating an 8-bit integer across all lanes.
+  //    * Pops 1 value and splats it across all 16 lanes of the vector.
+  //    */
+  //   splat: byte`\xfd\x0f`,
+  //   /**
+  //    * Extracts a signed 8-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+  //    */
+  //   extract_lane_s: (index) => [byte`\xfd\x15`, index],
+  //   /**
+  //    * Extracts an unsigned 8-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
+  //    */
+  //   extract_lane_u: (index) => [byte`\xfd\x16`, index],
+  //   /**
+  //    * Replaces a specific lane in a 128-bit vector with a new value.
+  //    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+  //    */
+  //   replace_lane: (index) => [byte`\xfd\x17`, index],
+  //   /**
+  //    * Compares two 128-bit vectors for equality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if equal, or `0x00` otherwise.
+  //    */
+  //   eq: byte`\xfd\x23`,
+  //   /**
+  //    * Compares two 128-bit vectors for inequality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if not equal, or `0x00` otherwise.
+  //    */
+  //   ne: byte`\xfd\x24`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
+  //    */
+  //   lt_s: byte`\xfd\x25`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a < b)`, or `0x00` otherwise.
+  //    */
+  //   lt_u: byte`\xfd\x26`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
+  //    */
+  //   gt_s: byte`\xfd\x27`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a > b)`, or `0x00` otherwise.
+  //    */
+  //   gt_u: byte`\xfd\x28`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
+  //    */
+  //   le_s: byte`\xfd\x29`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≤ b)`, or `0x00` otherwise.
+  //    */
+  //   le_u: byte`\xfd\x2a`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
+  //    */
+  //   ge_s: byte`\xfd\x2b`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFF` if `(a ≥ b)`, or `0x00` otherwise.
+  //    */
+  //   ge_u: byte`\xfd\x2c`,
+  //   /**
+  //    * Computes the absolute value of each lane in an `i8x16` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+  //    */
+  //   abs: byte`\xfd\x60`,
+  //   /**
+  //    * Negates each lane in an `i8x16` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+  //    */
+  //   neg: byte`\xfd\x61`,
+  //   /**
+  //    * Counts the number of set bits (1s) in each lane of an `i8x16` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by the population count of the original lane.
+  //    */
+  //   popcnt: byte`\xfd\x62`,
+  //   /**
+  //    * Checks if all lanes in an `i8x16` vector are non-zero.
+  //    * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+  //    */
+  //   all_true: byte`\xfd\x63`,
+  //   /**
+  //    * Creates a bitmask from an `i8x16` vector.
+  //    * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+  //    */
+  //   bitmask: byte`\xfd\x64`,
+  //   /**
+  //    * Narrows an `i16x8` vector to an `i8x16` vector using signed saturation.
+  //    * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `i8`.
+  //    */
+  //   narrow_i16x8_s: byte`\xfd\x65`,
+  //   /**
+  //    * Narrows an `i16x8` vector to an `i8x16` vector using unsigned saturation.
+  //    * Pops two vectors, combines their lanes into a single `i8x16` vector, saturating values that exceed the range of `u8`.
+  //    */
+  //   narrow_i16x8_u: byte`\xfd\x66`,
+  //   /**
+  //    * Performs a bitwise left shift on each lane of an `i8x16` vector.
+  //    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+  //    */
+  //   shl: byte`\xfd\x6b`,
+  //   /**
+  //    * Performs an arithmetic right shift on each lane of an `i8x16` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+  //    */
+  //   shr_s: byte`\xfd\x6c`,
+  //   /**
+  //    * Performs a logical right shift on each lane of an `i8x16` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+  //    */
+  //   shr_u: byte`\xfd\x6d`,
+  //   /**
+  //    * Adds corresponding lanes of two `i8x16` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+  //    */
+  //   add: byte`\xfd\x6e`,
+  //   /**
+  //    * Adds corresponding lanes of two `i8x16` vectors using signed saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
+  //    */
+  //   add_sat_s: byte`\xfd\x6f`,
+  //   /**
+  //    * Adds corresponding lanes of two `i8x16` vectors using unsigned saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
+  //    */
+  //   add_sat_u: byte`\xfd\x70`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i8x16` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+  //    */
+  //   sub: byte`\xfd\x71`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i8x16` vectors using signed saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i8`.
+  //    */
+  //   sub_sat_s: byte`\xfd\x72`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i8x16` vectors using unsigned saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u8`.
+  //    */
+  //   sub_sat_u: byte`\xfd\x73`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i8x16` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_s: byte`\xfd\x76`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_u: byte`\xfd\x77`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i8x16` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_s: byte`\xfd\x78`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i8x16` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_u: byte`\xfd\x79`,
+  //   /**
+  //    * Computes the unsigned average (rounded) of corresponding lanes of two `i8x16` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
+  //    */
+  //   avgr_u: byte`\xfd\x7b`,
+  //   /**
+  //    * Pushes a 128-bit constant vector onto the stack.
+  //    * The immediate value is encoded as a vector of 16 8-bit values.
+  //    */
+  //   const: (...vals) => (console.assert(vals.length === 16), [byte`\xfd\x0c`, encode_v128(vals)]),
+  // },
+  I16x8,
+  // {
+  //   /**
+  //    * Creates a 128-bit vector by replicating a 16-bit integer across all lanes.
+  //    * Pops 1 value and splats it across all 8 lanes of the vector.
+  //    */
+  //   splat: byte`\xfd\x10`,
+  //   /**
+  //    * Extracts a signed 16-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i32 (sign-extended).
+  //    */
+  //   extract_lane_s: (index) => [byte`\xfd\x18`, index],
+  //   /**
+  //    * Extracts an unsigned 16-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i32 (zero-extended).
+  //    */
+  //   extract_lane_u: (index) => [byte`\xfd\x19`, index],
+  //   /**
+  //    * Replaces a specific lane in a 128-bit vector with a new value.
+  //    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+  //    */
+  //   replace_lane: (index) => [byte`\xfd\x1a`, index],
+  //   /**
+  //    * Compares two 128-bit vectors for equality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if equal, or `0x0000` otherwise.
+  //    */
+  //   eq: byte`\xfd\x2d`,
+  //   /**
+  //    * Compares two 128-bit vectors for inequality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if not equal, or `0x0000` otherwise.
+  //    */
+  //   ne: byte`\xfd\x2e`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
+  //    */
+  //   lt_s: byte`\xfd\x2f`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a < b)`, or `0x0000` otherwise.
+  //    */
+  //   lt_u: byte`\xfd\x30`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
+  //    */
+  //   gt_s: byte`\xfd\x31`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a > b)`, or `0x0000` otherwise.
+  //    */
+  //   gt_u: byte`\xfd\x32`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
+  //    */
+  //   le_s: byte`\xfd\x33`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≤ b)`, or `0x0000` otherwise.
+  //    */
+  //   le_u: byte`\xfd\x34`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
+  //    */
+  //   ge_s: byte`\xfd\x35`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFF` if `(a ≥ b)`, or `0x0000` otherwise.
+  //    */
+  //   ge_u: byte`\xfd\x36`,
+  //   /**
+  //    * Adds adjacent pairs of lanes in an `i8x16` vector using signed addition, producing an `i16x8` vector.
+  //    * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+  //    */
+  //   extadd_pairwise_i8x16_s: byte`\xfd\x7c`,
+  //   /**
+  //    * Adds adjacent pairs of lanes in an `i8x16` vector using unsigned addition, producing an `i16x8` vector.
+  //    * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+  //    */
+  //   extadd_pairwise_i8x16_u: byte`\xfd\x7d`,
+  //   /**
+  //    * Adds adjacent pairs of lanes in an `i16x8` vector using signed addition, producing an `i32x4` vector.
+  //    * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+  //    */
+  //   extadd_pairwise_i16x8_s: byte`\xfd\x7e`,
+  //   /**
+  //    * Adds adjacent pairs of lanes in an `i16x8` vector using unsigned addition, producing an `i32x4` vector.
+  //    * Pops one vector and pushes a new vector where each lane is the sum of two adjacent lanes.
+  //    */
+  //   extadd_pairwise_i16x8_u: byte`\xfd\x7f`,
+  //   /**
+  //    * Computes the absolute value of each lane in an `i16x8` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+  //    */
+  //   abs: byte`\xfd\x80\x01`,
+  //   /**
+  //    * Negates each lane in an `i16x8` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+  //    */
+  //   neg: byte`\xfd\x81\x01`,
+  //   /**
+  //    * Performs a signed Q15 multiplication with rounding and saturation on each lane of two `i16x8` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is `(a * b + 0x4000) >> 15`, saturated to the range of `i16`.
+  //    */
+  //   q15mulr_sat_s: byte`\xfd\x82\x01`,
+  //   /**
+  //    * Checks if all lanes in an `i16x8` vector are non-zero.
+  //    * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+  //    */
+  //   all_true: byte`\xfd\x83\x01`,
+  //   /**
+  //    * Creates a bitmask from an `i16x8` vector.
+  //    * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+  //    */
+  //   bitmask: byte`\xfd\x84\x01`,
+  //   /**
+  //    * Narrows an `i32x4` vector to an `i16x8` vector using signed saturation.
+  //    * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `i16`.
+  //    */
+  //   narrow_i32x4_s: byte`\xfd\x85\x01`,
+  //   /**
+  //    * Narrows an `i32x4` vector to an `i16x8` vector using unsigned saturation.
+  //    * Pops two vectors, combines their lanes into a single `i16x8` vector, saturating values that exceed the range of `u16`.
+  //    */
+  //   narrow_i32x4_u: byte`\xfd\x86\x01`,
+  //   /**
+  //    * Extends the low 8 lanes of an `i8x16` vector to 16 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i8x16_s: byte`\xfd\x87\x01`,
+  //   /**
+  //    * Extends the high 8 lanes of an `i8x16` vector to 16 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i8x16_s: byte`\xfd\x88\x01`,
+  //   /**
+  //    * Extends the low 8 lanes of an `i8x16` vector to 16 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i8x16_u: byte`\xfd\x89\x01`,
+  //   /**
+  //    * Extends the high 8 lanes of an `i8x16` vector to 16 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i8x16_u: byte`\xfd\x8a\x01`,
+  //   /**
+  //    * Performs a bitwise left shift on each lane of an `i16x8` vector.
+  //    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+  //    */
+  //   shl: byte`\xfd\x8b\x01`,
+  //   /**
+  //    * Performs an arithmetic right shift on each lane of an `i16x8` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+  //    */
+  //   shr_s: byte`\xfd\x8c\x01`,
+  //   /**
+  //    * Performs a logical right shift on each lane of an `i16x8` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+  //    */
+  //   shr_u: byte`\xfd\x8d\x01`,
+  //   /**
+  //    * Adds corresponding lanes of two `i16x8` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+  //    */
+  //   add: byte`\xfd\x8e\x01`,
+  //   /**
+  //    * Adds corresponding lanes of two `i16x8` vectors using signed saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
+  //    */
+  //   add_sat_s: byte`\xfd\x8f\x01`,
+  //   /**
+  //    * Adds corresponding lanes of two `i16x8` vectors using unsigned saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
+  //    */
+  //   add_sat_u: byte`\xfd\x90\x01`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i16x8` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+  //    */
+  //   sub: byte`\xfd\x91\x01`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i16x8` vectors using signed saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `i16`.
+  //    */
+  //   sub_sat_s: byte`\xfd\x92\x01`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i16x8` vectors using unsigned saturation.
+  //    * Pops two vectors and pushes a new vector where each lane is saturated if the result exceeds the range of `u16`.
+  //    */
+  //   sub_sat_u: byte`\xfd\x93\x01`,
+  //   /**
+  //    * Multiplies corresponding lanes of two `i16x8` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+  //    */
+  //   mul: byte`\xfd\x95\x01`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i16x8` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_s: byte`\xfd\x96\x01`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_u: byte`\xfd\x97\x01`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i16x8` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_s: byte`\xfd\x98\x01`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i16x8` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_u: byte`\xfd\x99\x01`,
+  //   /**
+  //    * Computes the unsigned average (rounded) of corresponding lanes of two `i16x8` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the rounded average of the corresponding lanes.
+  //    */
+  //   avgr_u: byte`\xfd\x9b\x01`,
+  //   /**
+  //    * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i8x16_s: byte`\xfd\x9c\x01`,
+  //   /**
+  //    * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i8x16_s: byte`\xfd\x9d\x01`,
+  //   /**
+  //    * Multiplies low 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i8x16_u: byte`\xfd\x9e\x01`,
+  //   /**
+  //    * Multiplies high 8 lanes of two `i8x16` vectors and extends the result to 16 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i8x16_u: byte`\xfd\x9f\x01`,
+  //   /**
+  //    * Pushes a 128-bit constant vector onto the stack.
+  //    * The immediate value is encoded as a vector of 8 16-bit values.
+  //    */
+  //   const: (...vals) => (console.assert(vals.length === 8), [byte`\xfd\x0c`, encode_v128(vals)]),
+  // },
+  I32x4,
+  // {
+  //   /**
+  //    * Creates a 128-bit vector by replicating a 32-bit integer across all lanes.
+  //    * Pops 1 value and splats it across all 4 lanes of the vector.
+  //    */
+  //   splat: byte`\xfd\x11`,
+  //   /**
+  //    * Extracts a 32-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i32.
+  //    */
+  //   extract_lane: (index) => [byte`\xfd\x1b`, index],
+  //   /**
+  //    * Replaces a specific lane in a 128-bit vector with a new value.
+  //    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+  //    */
+  //   replace_lane: (index) => [byte`\xfd\x1c`, index],
+  //   /**
+  //    * Compares two 128-bit vectors for equality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if equal, or `0x00000000` otherwise.
+  //    */
+  //   eq: byte`\xfd\x37`,
+  //   /**
+  //    * Compares two 128-bit vectors for inequality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if not equal, or `0x00000000` otherwise.
+  //    */
+  //   ne: byte`\xfd\x38`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
+  //    */
+  //   lt_s: byte`\xfd\x39`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a < b)`, or `0x00000000` otherwise.
+  //    */
+  //   lt_u: byte`\xfd\x3a`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
+  //    */
+  //   gt_s: byte`\xfd\x3b`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a > b)`, or `0x00000000` otherwise.
+  //    */
+  //   gt_u: byte`\xfd\x3c`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
+  //    */
+  //   le_s: byte`\xfd\x3d`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≤ b)`, or `0x00000000` otherwise.
+  //    */
+  //   le_u: byte`\xfd\x3e`,
+  //   /**
+  //    * Compares two 128-bit vectors for signed greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
+  //    */
+  //   ge_s: byte`\xfd\x3f`,
+  //   /**
+  //    * Compares two 128-bit vectors for unsigned greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFF` if `(a ≥ b)`, or `0x00000000` otherwise.
+  //    */
+  //   ge_u: byte`\xfd\x40`,
+  //   /**
+  //    * Computes the absolute value of each lane in an `i32x4` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+  //    */
+  //   abs: byte`\xfd\xa0\x01`,
+  //   /**
+  //    * Negates each lane in an `i32x4` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+  //    */
+  //   neg: byte`\xfd\xa1\x01`,
+  //   /**
+  //    * Checks if all lanes in an `i32x4` vector are non-zero.
+  //    * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+  //    */
+  //   all_true: byte`\xfd\xa3\x01`,
+  //   /**
+  //    * Creates a bitmask from an `i32x4` vector.
+  //    * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+  //    */
+  //   bitmask: byte`\xfd\xa4\x01`,
+  //   /**
+  //    * Extends the low 4 lanes of an `i16x8` vector to 32 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i16x8_s: byte`\xfd\xa7\x01`,
+  //   /**
+  //    * Extends the high 4 lanes of an `i16x8` vector to 32 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i16x8_s: byte`\xfd\xa8\x01`,
+  //   /**
+  //    * Extends the low 4 lanes of an `i16x8` vector to 32 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i16x8_u: byte`\xfd\xa9\x01`,
+  //   /**
+  //    * Extends the high 4 lanes of an `i16x8` vector to 32 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i16x8_u: byte`\xfd\xaa\x01`,
+  //   /**
+  //    * Performs a bitwise left shift on each lane of an `i32x4` vector.
+  //    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+  //    */
+  //   shl: byte`\xfd\xab\x01`,
+  //   /**
+  //    * Performs an arithmetic right shift on each lane of an `i32x4` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+  //    */
+  //   shr_s: byte`\xfd\xac\x01`,
+  //   /**
+  //    * Performs a logical right shift on each lane of an `i32x4` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+  //    */
+  //   shr_u: byte`\xfd\xad\x01`,
+  //   /**
+  //    * Adds corresponding lanes of two `i32x4` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+  //    */
+  //   add: byte`\xfd\xae\x01`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i32x4` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+  //    */
+  //   sub: byte`\xfd\xb1\x01`,
+  //   /**
+  //    * Multiplies corresponding lanes of two `i32x4` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+  //    */
+  //   mul: byte`\xfd\xb5\x01`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i32x4` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_s: byte`\xfd\xb6\x01`,
+  //   /**
+  //    * Computes the minimum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the minimum of the corresponding lanes.
+  //    */
+  //   min_u: byte`\xfd\xb7\x01`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i32x4` vectors using signed comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_s: byte`\xfd\xb8\x01`,
+  //   /**
+  //    * Computes the maximum of corresponding lanes of two `i32x4` vectors using unsigned comparison.
+  //    * Pops two vectors and pushes a new vector where each lane is the maximum of the corresponding lanes.
+  //    */
+  //   max_u: byte`\xfd\xb9\x01`,
+  //   /**
+  //    * Computes the dot product of two `i16x8` vectors, producing an `i32x4` vector.
+  //    * Pops two vectors, computes the dot product of adjacent pairs of lanes, and pushes the result as an `i32x4` vector.
+  //    */
+  //   dot_i16x8_s: byte`\xfd\xba\x01`,
+  //   /**
+  //    * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i16x8_s: byte`\xfd\xbb\x01`,
+  //   /**
+  //    * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i16x8_s: byte`\xfd\xbc\x01`,
+  //   /**
+  //    * Multiplies low 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i16x8_u: byte`\xfd\xbd\x01`,
+  //   /**
+  //    * Multiplies high 4 lanes of two `i16x8` vectors and extends the result to 32 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i16x8_u: byte`\xfd\xbe\x01`,
+  //   /**
+  //    * Converts each lane of an `f32x4` vector to a signed `i32x4` vector using saturation.
+  //    * Pops one vector and pushes a new vector where each lane is truncated to `i32` with saturation if the result exceeds the range of `i32`.
+  //    */
+  //   trunc_sat_f32x4_s: byte`\xfd\xf8\x01`,
+  //   /**
+  //    * Converts each lane of an `f32x4` vector to an unsigned `i32x4` vector using saturation.
+  //    * Pops one vector and pushes a new vector where each lane is truncated to `u32` with saturation if the result exceeds the range of `u32`.
+  //    */
+  //   trunc_sat_f32x4_u: byte`\xfd\xf9\x01`,
+  //   /**
+  //    * Converts the low two lanes of an `f64x2` vector to a signed `i32x4` vector using saturation.
+  //    * Pops one vector and pushes a new vector where the low two lanes are truncated to `i32` with saturation, and the high two lanes are zeroed.
+  //    */
+  //   trunc_sat_f64x2_s_zero: byte`\xfd\xfc\x01`,
+  //   /**
+  //    * Converts the low two lanes of an `f64x2` vector to an unsigned `i32x4` vector using saturation.
+  //    * Pops one vector and pushes a new vector where the low two lanes are truncated to `u32` with saturation, and the high two lanes are zeroed.
+  //    */
+  //   trunc_sat_f64x2_u_zero: byte`\xfd\xfd\x01`,
+  //   /**
+  //    * Pushes a 128-bit constant vector onto the stack.
+  //    * The immediate value is encoded as a vector of 4 32-bit values.
+  //    */
+  //   const: (...vals) => (console.assert(vals.length === 4), [byte`\xfd\x0c`, encode_v128(vals)]),
+  // },
+  I64x2,
+  // {
+  //   /**
+  //    * Creates a 128-bit vector by replicating a 64-bit integer across all lanes.
+  //    * Pops 1 value and splats it across all 2 lanes of the vector.
+  //    */
+  //   splat: byte`\xfd\x12`,
+  //   /**
+  //    * Extracts a 64-bit integer from a specific lane of a 128-bit vector.
+  //    * Pops a vector and pushes the extracted lane value as an i64.
+  //    */
+  //   extract_lane: (index) => [byte`\xfd\x1d`, index],
+  //   /**
+  //    * Replaces a specific lane in a 128-bit vector with a new value.
+  //    * Pops a vector and a scalar value, then replaces the specified lane and pushes the updated vector.
+  //    */
+  //   replace_lane: (index) => [byte`\xfd\x1e`, index],
+  //   /**
+  //    * Computes the absolute value of each lane in an `i64x2` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its absolute value.
+  //    */
+  //   abs: byte`\xfd\xc0\x01`,
+  //   /**
+  //    * Negates each lane in an `i64x2` vector.
+  //    * Pops one vector and pushes a new vector where each lane is replaced by its negated value.
+  //    */
+  //   neg: byte`\xfd\xc1\x01`,
+  //   /**
+  //    * Checks if all lanes in an `i64x2` vector are non-zero.
+  //    * Pops one vector and pushes `1` (true) if all lanes are non-zero, or `0` (false) otherwise.
+  //    */
+  //   all_true: byte`\xfd\xc3\x01`,
+  //   /**
+  //    * Creates a bitmask from an `i64x2` vector.
+  //    * Pops one vector and pushes an `i32` bitmask where each bit corresponds to the sign bit of a lane in the vector.
+  //    */
+  //   bitmask: byte`\xfd\xc4\x01`,
+  //   /**
+  //    * Extends the low 2 lanes of an `i32x4` vector to 64 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i32x4_s: byte`\xfd\xc7\x01`,
+  //   /**
+  //    * Extends the high 2 lanes of an `i32x4` vector to 64 bits using signed extension.
+  //    * Pops one vector and pushes a new vector where each lane is the sign-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i32x4_s: byte`\xfd\xc8\x01`,
+  //   /**
+  //    * Extends the low 2 lanes of an `i32x4` vector to 64 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding low lane.
+  //    */
+  //   extend_low_i32x4_u: byte`\xfd\xc9\x01`,
+  //   /**
+  //    * Extends the high 2 lanes of an `i32x4` vector to 64 bits using zero extension.
+  //    * Pops one vector and pushes a new vector where each lane is the zero-extended value of the corresponding high lane.
+  //    */
+  //   extend_high_i32x4_u: byte`\xfd\xca\x01`,
+  //   /**
+  //    * Performs a bitwise left shift on each lane of an `i64x2` vector.
+  //    * Pops one vector and a scalar value, shifts each lane left by the scalar value, and pushes the result.
+  //    */
+  //   shl: byte`\xfd\xcb\x01`,
+  //   /**
+  //    * Performs an arithmetic right shift on each lane of an `i64x2` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (sign-preserving), and pushes the result.
+  //    */
+  //   shr_s: byte`\xfd\xcc\x01`,
+  //   /**
+  //    * Performs a logical right shift on each lane of an `i64x2` vector.
+  //    * Pops one vector and a scalar value, shifts each lane right by the scalar value (zero-filling), and pushes the result.
+  //    */
+  //   shr_u: byte`\xfd\xcd\x01`,
+  //   /**
+  //    * Adds corresponding lanes of two `i64x2` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the sum of the corresponding lanes.
+  //    */
+  //   add: byte`\xfd\xce\x01`,
+  //   /**
+  //    * Subtracts corresponding lanes of two `i64x2` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the difference of the corresponding lanes.
+  //    */
+  //   sub: byte`\xfd\xd1\x01`,
+  //   /**
+  //    * Multiplies corresponding lanes of two `i64x2` vectors.
+  //    * Pops two vectors and pushes a new vector where each lane is the product of the corresponding lanes.
+  //    */
+  //   mul: byte`\xfd\xd5\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for equality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if equal, or `0x0000000000000000` otherwise.
+  //    */
+  //   eq: byte`\xfd\xd6\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for inequality (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if not equal, or `0x0000000000000000` otherwise.
+  //    */
+  //   ne: byte`\xfd\xd7\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for signed less-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a < b)`, or `0x0000000000000000` otherwise.
+  //    */
+  //   lt_s: byte`\xfd\xd8\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for signed greater-than (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a > b)`, or `0x0000000000000000` otherwise.
+  //    */
+  //   gt_s: byte`\xfd\xd9\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for signed less-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≤ b)`, or `0x0000000000000000` otherwise.
+  //    */
+  //   le_s: byte`\xfd\xda\x01`,
+  //   /**
+  //    * Compares two `i64x2` vectors for signed greater-than-or-equal (per-lane).
+  //    * Pops two vectors and pushes a new vector where each lane is `0xFFFFFFFFFFFFFFFF` if `(a ≥ b)`, or `0x0000000000000000` otherwise.
+  //    */
+  //   ge_s: byte`\xfd\xdb\x01`,
+  //   /**
+  //    * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i32x4_s: byte`\xfd\xdc\x01`,
+  //   /**
+  //    * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using signed extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the sign-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i32x4_s: byte`\xfd\xdd\x01`,
+  //   /**
+  //    * Multiplies low 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding low lanes.
+  //    */
+  //   extmul_low_i32x4_u: byte`\xfd\xde\x01`,
+  //   /**
+  //    * Multiplies high 2 lanes of two `i32x4` vectors and extends the result to 64 bits using zero extension.
+  //    * Pops two vectors and pushes a new vector where each lane is the zero-extended product of the corresponding high lanes.
+  //    */
+  //   extmul_high_i32x4_u: byte`\xfd\xdf\x01`,
+  //   /**
+  //    * Pushes a 128-bit constant vector onto the stack.
+  //    * The immediate value is encoded as a vector of 2 64-bit values.
+  //    */
+  //   const: (...vals) => (console.assert(vals.length === 2), [byte`\xfd\x0c`, encode_v128(vals)]),
+  // },
   F32x4: {
     /**
      * Creates a 128-bit vector by replicating a 32-bit float across all lanes.
@@ -2805,4 +2815,4 @@ export default {
   [byte`\xfd\xfd\x01`]: `i32x4_trunc_sat_f64x2_u_zero`,
   [byte`\xfd\xfe\x01`]: `f64x2_convert_low_i32x4_s`,
   [byte`\xfd\xff\x01`]: `f64x2_convert_low_i32x4_u`,
-};
+}

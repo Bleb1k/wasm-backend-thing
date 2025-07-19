@@ -1,5 +1,5 @@
-import { GlobalContext } from "./higher_level_lib.js";
-import { encodeLEB128 } from "./lib.js";
+import { GlobalContext } from "./higher_level_lib.js"
+import { encodeLEB128 } from "./lib.js"
 
 // export const Type = {
 //   // Number type
@@ -37,11 +37,11 @@ import { encodeLEB128 } from "./lib.js";
 
 export class Num {
   /** @type {"stack" | "local" | "global" | "memory"} */
-  #storage = "stack";
+  #storage = "stack"
   /** @type {number|I32|I64|U32|U64|F32|F64} a number or pointer */
-  #value;
+  #value
   /** @type {string} */
-  #type;
+  #type
 
   /**
    * @param {string} type
@@ -49,13 +49,13 @@ export class Num {
    */
   constructor(type, value) {
     if (typeof value === "object") {
-      this.#value = value;
-      this.#type = type + "*";
-      this.#storage = "local";
+      this.#value = value
+      this.#type = type + "*"
+      this.#storage = "local"
     } else {
-      this.#value = value;
-      this.#type = type;
-      this.#storage = "stack";
+      this.#value = value
+      this.#type = type
+      this.#storage = "stack"
     }
   }
 
@@ -65,11 +65,11 @@ export class Num {
    */
   static const(type, value) {
     console.log(this, new Error("Called base class Num"))
-    return new Num(type, value);
+    return new Num(type, value)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   static param(name) {
     console.log(this, new Error("Called base class Int"))
@@ -83,7 +83,7 @@ export class Num {
    */
   static load(type, ptr) {
     console.log(this, new Error("Called base class Num"))
-    return new Num(type, ptr);
+    return new Num(type, ptr)
   }
 
   /**
@@ -93,12 +93,11 @@ export class Num {
   add(num) {
     console.log(this.constructor, new Error("Called base class Num"))
     console.log(this, `.add(${num})`)
-    return this;
+    return this
   }
 }
 
 export class Int extends Num {
-
   /**
    * @param {string} type
    * @param {number|bigint|I32|I64|U32|U64} value
@@ -112,7 +111,7 @@ export class Int extends Num {
    * @param {number|bigint} value
    */
   static const(type, value) {
-    return new Int(type, value);
+    return new Int(type, value)
   }
 
   /**
@@ -120,7 +119,7 @@ export class Int extends Num {
    * @param {I32|I64} ptr
    */
   static load(type, ptr) {
-    return new Int(type, ptr);
+    return new Int(type, ptr)
   }
 }
 
@@ -131,9 +130,11 @@ export class I64 extends Int {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== I64.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use I64.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use I64.const() to create an instance.",
+      )
     }
-    super("i64", value); // Call parent constructor
+    super("i64", value) // Call parent constructor
   }
 
   /**
@@ -141,11 +142,11 @@ export class I64 extends Int {
    * @returns {I64}
    */
   static const(value) {
-    return new I64(value, I64.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new I64(value, I64.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 }
 
 export class I32 extends Int {
@@ -155,22 +156,24 @@ export class I32 extends Int {
    */
   constructor(value, bypass_token, type = "i32") {
     if (bypass_token !== I32.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use I32.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use I32.const() to create an instance.",
+      )
     }
-    super(type, value);
+    super(type, value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    const val = new I32(value, I32.#PRIVATE_CONSTRUCTOR_TOKEN);
+    const val = new I32(value, I32.#PRIVATE_CONSTRUCTOR_TOKEN)
     // console.log(GlobalContext.current_app)
     return val
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -187,20 +190,22 @@ export class I16 extends I32 {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== I16.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use I16.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use I16.const() to create an instance.",
+      )
     }
-    super("i16", value);
+    super("i16", value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    return new I16(value, I16.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new I16(value, I16.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -217,20 +222,22 @@ export class I8 extends I32 {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== I8.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use I8.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use I8.const() to create an instance.",
+      )
     }
-    super("i8", value);
+    super("i8", value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    return new I8(value, I8.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new I8(value, I8.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -247,9 +254,11 @@ export class U64 extends Int {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== U64.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use U64.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use U64.const() to create an instance.",
+      )
     }
-    super("u64", value); // Call parent constructor
+    super("u64", value) // Call parent constructor
   }
 
   /**
@@ -257,11 +266,11 @@ export class U64 extends Int {
    * @returns {U64}
    */
   static const(value) {
-    return new U64(value, U64.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new U64(value, U64.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -278,9 +287,11 @@ export class U32 extends Int {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== U32.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use U32.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use U32.const() to create an instance.",
+      )
     }
-    super("u32", value); // Call parent constructor
+    super("u32", value) // Call parent constructor
   }
 
   /**
@@ -288,11 +299,11 @@ export class U32 extends Int {
    * @returns {U32}
    */
   static const(value) {
-    return new U32(value, U32.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new U32(value, U32.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -309,20 +320,22 @@ export class U16 extends I32 {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== U16.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use U16.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use U16.const() to create an instance.",
+      )
     }
-    super("i16", value);
+    super("i16", value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    return new U16(value, U16.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new U16(value, U16.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -339,20 +352,22 @@ export class U8 extends I32 {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== U8.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use U8.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use U8.const() to create an instance.",
+      )
     }
-    super("i8", value);
+    super("i8", value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    return new U8(value, U8.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new U8(value, U8.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -363,15 +378,16 @@ export class U8 extends I32 {
 }
 
 export class Float extends Num {
-
   /**
    * @param {string} type
    * @param {number|F32|F64} value
-   * @param {symbol} bypass_token 
+   * @param {symbol} bypass_token
    */
   constructor(type, value, bypass_token) {
     if (bypass_token !== Float.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use Float.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use Float.const() to create an instance.",
+      )
     }
     super(type, value)
   }
@@ -381,18 +397,18 @@ export class Float extends Num {
    * @param {number|bigint} value
    */
   static const(type, value) {
-    return new Float(type, value, Float.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new Float(type, value, Float.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {string} type
    * @param {I32|I64|U32|U64} ptr
    */
   static load(type, ptr) {
-    return new Float(type, ptr, Float.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new Float(type, ptr, Float.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 }
 
@@ -403,9 +419,11 @@ export class F64 extends Float {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== F64.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use F64.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use F64.const() to create an instance.",
+      )
     }
-    super("f64", value); // Call parent constructor
+    super("f64", value) // Call parent constructor
   }
 
   /**
@@ -413,11 +431,11 @@ export class F64 extends Float {
    * @returns {F64}
    */
   static const(value) {
-    return new F64(value, F64.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new F64(value, F64.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 }
 
 export class F32 extends Float {
@@ -427,20 +445,22 @@ export class F32 extends Float {
    */
   constructor(value, bypass_token) {
     if (bypass_token !== F32.#PRIVATE_CONSTRUCTOR_TOKEN) {
-      throw new Error("Private constructor. Use F32.const() to create an instance.");
+      throw new Error(
+        "Private constructor. Use F32.const() to create an instance.",
+      )
     }
-    super("f32", value);
+    super("f32", value)
   }
 
   /**
    * @param {number|bigint} value
    */
   static const(value) {
-    return new F32(value, F32.#PRIVATE_CONSTRUCTOR_TOKEN);
+    return new F32(value, F32.#PRIVATE_CONSTRUCTOR_TOKEN)
   }
 
   // Private static symbol to bypass the private constructor check
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
 
   /**
    * @param {I32|I64} ptr
@@ -451,5 +471,8 @@ export class F32 extends Float {
 }
 
 export default {
-  I32, I64, U32, U64
+  I32,
+  I64,
+  U32,
+  U64,
 }

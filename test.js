@@ -1,4 +1,4 @@
-import { I32, I32x4, I8x16, InstrArray } from "./expand_instr.js";
+import { I32, I32x4, I8x16, InstrArray } from "./expand_instr.js"
 
 // console.log(I32.from.toString())
 // console.log(I32.from.toString())
