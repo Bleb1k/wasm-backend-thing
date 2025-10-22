@@ -2,10 +2,16 @@
  * TODO: Add debug info support (names and labels)
  */
 
-import App, { decodeIEEE754, encodeLEB128, import_kind, mutability, Type } from "./lib.js"
-import W from "./instructions.js"
-import { I32 } from "./expand_instr.js"
-import { add_arena_allocator, add_bump_allocator } from "./alloc.js"
+import App, {
+  decodeIEEE754,
+  encodeLEB128,
+  import_kind,
+  mutability,
+  Type,
+} from "./lib.js";
+import W from "./instructions.js";
+import { I32 } from "./expand_instr.js";
+import { add_arena_allocator, add_bump_allocator } from "./alloc.js";
 
 // app.newImport("env", [["sub2", import_kind.Func([Type.i32], [Type.i32])]]);
 // app.newImport("env", [
@@ -14,7 +20,7 @@ import { add_arena_allocator, add_bump_allocator } from "./alloc.js"
 //   ["some_var", import_kind.Global(Type.f64, mutability.yes)],
 // ]);
 
-const app = new App()
+const app = new App();
 
 // app.newImport("foo", [
 //   ["bar", import_kind.Func([Type.f32])],
@@ -23,21 +29,21 @@ const app = new App()
 //   ["my_global", import_kind.Global(Type.i32)]
 // ])
 
-app.newGlobal(Type.i32)
-app.newGlobal(Type.i32, 0, 1)
-app.newGlobal(Type.i32, 0, 0)
-app.newGlobal(Type.i64)
-app.newGlobal(Type.i64, 100, 1)
-app.newGlobal(Type.f32)
-app.newGlobal(Type.f32, 10, 1)
-app.newGlobal(Type.f64)
-app.newGlobal(Type.f64, 100, 1)
-app.newGlobal(Type.externref)
-app.newGlobal(Type.externref, 0, 1)
-app.newGlobal(Type.funcref)
-app.newGlobal(Type.funcref, null, 1)
-app.newGlobal(Type.v128)
-app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
+app.newGlobal(Type.i32);
+app.newGlobal(Type.i32, 0, 1);
+app.newGlobal(Type.i32, 0, 0);
+app.newGlobal(Type.i64);
+app.newGlobal(Type.i64, 100, 1);
+app.newGlobal(Type.f32);
+app.newGlobal(Type.f32, 10, 1);
+app.newGlobal(Type.f64);
+app.newGlobal(Type.f64, 100, 1);
+app.newGlobal(Type.externref);
+app.newGlobal(Type.externref, 0, 1);
+app.newGlobal(Type.funcref);
+app.newGlobal(Type.funcref, null, 1);
+app.newGlobal(Type.v128);
+app.newGlobal(Type.v128, [10, 20, 30, 48], 1);
 
 // const addTwo_wasm = app.newFunction(
 //   [[Type.i32, Type.i32], [Type.i32]],
@@ -56,10 +62,10 @@ app.newGlobal(Type.v128, [10, 20, 30, 48], 1)
 //   [instr.call, addTwo_wasm],
 // ], { export: "foo" });
 
-app.newMemory(1, undefined, "memory")
+app.newMemory(1, undefined, "memory");
 
-const { w_alloc: w_bump_alloc } = add_bump_allocator(app)
-const { w_new_arena } = add_arena_allocator(app)
+const { w_alloc: w_bump_alloc } = add_bump_allocator(app);
+const { w_new_arena } = add_arena_allocator(app);
 
 app.newFunction([
   [Type.i64], // args
@@ -89,74 +95,87 @@ app.newFunction([
   ),
 
   W.local.get(1), // push acc to stack, autoreturns
-], { export: "factorial" })
+], { export: "factorial" });
 
 app.newFunction([[], [Type.i32]], [], [
   W.memory.size(),
-], { export: "pages_allocated" })
+], { export: "pages_allocated" });
 
 app.newFunction([[Type.i32], [Type.i32]], [], [
   W.local.get(0),
   W.memory.grow(),
-], { export: "allocate_pages" })
+], { export: "allocate_pages" });
 
 app.newFunction([[Type.i32, Type.i32, Type.i32], [Type.i32]], [], [
   W.local.get(0),
   W.local.get(1),
   W.local.get(2),
   W.select(),
-], { export: "check_select" })
+], { export: "check_select" });
 
-app.newFunction([[Type.externref, Type.externref, Type.i32], [Type.externref]], [], [
-  W.local.get(0),
-  W.local.get(1),
-  W.local.get(2),
-  W.select(Type.externref),
-], { export: "check_selectt" })
+app.newFunction(
+  [[Type.externref, Type.externref, Type.i32], [Type.externref]],
+  [],
+  [
+    W.local.get(0),
+    W.local.get(1),
+    W.local.get(2),
+    W.select(Type.externref),
+  ],
+  { export: "check_selectt" },
+);
 
 app.newFunction([[], [Type.i64]], [], [
   I32.const(34).const(35),
   W.call(w_new_arena),
-], { export: "testt" })
+], { export: "testt" });
 
 app.newFunction([[], [Type.i32]], [], [
   I32.const(1).store(0),
   I32.const(-1).store(4),
   I32.load8_u(0).load8_u(4).add(),
-], { export: "u8bits" })
+], { export: "u8bits" });
 
 // TODO: test V128.bitselect
 
-const { instance, module } = await app.compile({}, { debug: false })
+const { instance, module } = await app.compile({}, { debug: false });
 
-console.log(instance.exports)
-console.log("a factorial of 16 is", instance.exports.factorial(16n)) // 20922789888000n
-console.log("allocated initially ", instance.exports.pages_allocated())
-console.log("previously allocated", instance.exports.allocate_pages(2))
-console.log("after new allocation", instance.exports.pages_allocated())
+console.log(instance.exports);
+console.log("a factorial of 16 is", instance.exports.factorial(16n)); // 20922789888000n
+console.log("allocated initially ", instance.exports.pages_allocated());
+console.log("previously allocated", instance.exports.allocate_pages(2));
+console.log("after new allocation", instance.exports.pages_allocated());
 // ;[[0, 1, 2]].forEach(([a, b, c]) => {
 //   console.log(instance.exports.check_select(a, b, c)) // returns a (third is 2)
 //   console.log(instance.exports.check_select(b, c, a)) // returns c (third is 0)
 //   console.log(instance.exports.check_select(c, a, b)) // returns c (third is 1)
 // })
-instance.exports.check_selectt(() => console.log("true"), () => console.log("false"), 0)()
-instance.exports.check_selectt(() => console.log("true"), () => console.log("false"), 1)()
+instance.exports.check_selectt(
+  () => console.log("true"),
+  () => console.log("false"),
+  0,
+)();
+instance.exports.check_selectt(
+  () => console.log("true"),
+  () => console.log("false"),
+  1,
+)();
 // new format:
 // app.function((x = W.I32.param("x")) => {
 //   y.cast(W.I32).add(x).store(x);
 //   return [x, x, y];
 // })
 
-console.log("0b" + instance.exports.u8bits().toString(2))
+console.log("0b" + instance.exports.u8bits().toString(2));
 
-console.log(instance.exports.alloc(101))
-console.log(instance.exports.alloc(123))
-console.log(instance.exports.alloc(10000))
-console.log(instance.exports.alloc(50000))
-console.log(instance.exports.alloc(150000))
-console.log(instance.exports.alloc(500000))
+console.log(instance.exports.alloc(101));
+console.log(instance.exports.alloc(123));
+console.log(instance.exports.alloc(10000));
+console.log(instance.exports.alloc(50000));
+console.log(instance.exports.alloc(150000));
+console.log(instance.exports.alloc(500000));
 
-console.log("0x" + instance.exports.testt().toString(16).padStart(16, "0"))
+console.log("0x" + instance.exports.testt().toString(16).padStart(16, "0"));
 
 /**
  * There, app.function changes global context to the context of current app,

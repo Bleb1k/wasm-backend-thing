@@ -1,18 +1,20 @@
-import { InstrArray } from "./expand_instr.js"
-import { byte, guard, str } from "./helpers.js"
-import W from "./instructions.js"
-import raw_instr from "./instructions.js"
+import { InstrArray } from "./expand_instr.js";
+import { byte, guard, str } from "./helpers.js";
+import W from "./instructions.js";
+import raw_instr from "./instructions.js";
 
-let IS_DEBUG = false
+let IS_DEBUG = false;
 const DEBUG = (start, arr = [], what) =>
   IS_DEBUG
     ? console.log(`${what ? "- " + what + ":\n" : ""}${
       [...arr].map((v) => {
-        let val = v instanceof Array && (v.length === 3 || v.length === 2) ? v[0] : v
+        let val = v instanceof Array && (v.length === 3 || v.length === 2)
+          ? v[0]
+          : v;
         val = typeof val === "number" || typeof val === "bigint"
           ? val.toString(10).padEnd(4, " ") +
             (val > 9 ? ` (${val})` : "")
-          : val
+          : val;
         // console.log(v, v.length)
         return v instanceof Array && v.length === 3 && typeof v[2] === "number"
           ? `${((start += v[2]) - v[2]).toString(10).padStart(3, "0")}: ${val}`
@@ -22,31 +24,36 @@ const DEBUG = (start, arr = [], what) =>
             .padEnd(45, " ") + v[1]
           : v instanceof Array && v.length === 0
           ? ""
-          : `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`
+          : `${((start += 1) - 1).toString(10).padStart(3, "0")}: ${val}`;
       }).filter((v) => v).join("\n")
     }`)
-    : void (start, arr, what)
-const debug_byte = (byte_str) => IS_DEBUG ? debug_byte_arr(byte(byte_str)) : void byte_str
+    : void (start, arr, what);
+const debug_byte = (byte_str) =>
+  IS_DEBUG ? debug_byte_arr(byte(byte_str)) : void byte_str;
 const debug_byte_arr = (arr) =>
   IS_DEBUG
     ? [arr].flat(10).map((n) => n.toString(16).padStart(2, 0)).reduce(
       (acc, v) => {
-        const cur_str = acc.pop()
+        const cur_str = acc.pop();
         if (cur_str.length < 4) {
-          acc.push(cur_str + v)
+          acc.push(cur_str + v);
         } else {
-          acc.push(cur_str, v)
+          acc.push(cur_str, v);
         }
-        return acc
+        return acc;
       },
       [""],
     ).join(" ")
-    : void arr
+    : void arr;
 const debug_str = (byte_arr) =>
   IS_DEBUG
-    ? '"' + (typeof byte_arr === "string" ? byte_arr : byte_arr.map((v) => String.fromCodePoint(v)).join("")) +
+    ? '"' + (typeof byte_arr === "string"
+      ? byte_arr
+      : byte_arr.map((v) =>
+        String.fromCodePoint(v)
+      ).join("")) +
       '"'
-    : void byte_arr
+    : void byte_arr;
 
 export const Type = {
   // Number type
@@ -62,7 +69,8 @@ export const Type = {
   // Function type
   func: 0x60,
   /** @type {(args?: number[], rets?: number[]) => number[]} */
-  Func: (args = [], rets = []) => byte`\x60${args.length}${args}${rets.length}${rets}`,
+  Func: (args = [], rets = []) =>
+    byte`\x60${args.length}${args}${rets.length}${rets}`,
   // Result type
   result: 0x40,
   // Table type
@@ -80,7 +88,7 @@ export const Type = {
   [0x6f]: "externref",
   [0x60]: "func",
   [0x40]: "result",
-}
+};
 
 const section = {
   custom: 0,
@@ -110,7 +118,7 @@ const section = {
   10: "code",
   11: "data",
   12: "dataCount",
-}
+};
 
 // AI generated because I can't bother
 /**
@@ -137,237 +145,237 @@ const section = {
  * encodeLEB128("i32", -1); // [ 127 ]
  */
 export function encodeLEB128(type, value) {
-  guard({ type, value })
+  guard({ type, value });
 
-  const match = type.match(/^([iu])(\d+)$/)
+  const match = type.match(/^([iu])(\d+)$/);
   if (!match) {
     throw new Error(
       `Invalid type format: ${type}. Expected format like "u32" or "i32".`,
-    )
+    );
   }
 
-  const [_, encodingType, bitWidthStr] = match
-  const N = parseInt(bitWidthStr, 10)
+  const [_, encodingType, bitWidthStr] = match;
+  const N = parseInt(bitWidthStr, 10);
 
   if (N <= 0) {
     throw new Error(
       `Invalid bit width: ${N}. Bit width must be greater than 0.`,
-    )
+    );
   }
 
-  const isSigned = encodingType === "i"
-  const maxValue = isSigned ? BigInt(2 ** (N - 1)) - 1n : BigInt(2 ** N) - 1n
-  const minValue = isSigned ? -BigInt(2 ** (N - 1)) : 0n
+  const isSigned = encodingType === "i";
+  const maxValue = isSigned ? BigInt(2 ** (N - 1)) - 1n : BigInt(2 ** N) - 1n;
+  const minValue = isSigned ? -BigInt(2 ** (N - 1)) : 0n;
 
   if (typeof value !== "number" && typeof value !== "bigint") {
-    throw new Error(`Invalid value: ${value}. Must be a number or bigint.`)
+    throw new Error(`Invalid value: ${value}. Must be a number or bigint.`);
   }
-  const bigValue = BigInt(value)
+  const bigValue = BigInt(value);
   if (bigValue < minValue || bigValue > maxValue) {
     throw new Error(
       `Value ${value} out of range for type ${type}. Range: [${minValue}, ${maxValue}].`,
-    )
+    );
   }
 
-  const maxBytes = Math.ceil(N / 7)
-  const result = []
-  let remaining = bigValue
+  const maxBytes = Math.ceil(N / 7);
+  const result = [];
+  let remaining = bigValue;
 
   while (true) {
     if (result.length >= maxBytes) {
       throw new Error(
         `Encoding exceeds maximum allowed bytes (${maxBytes}) for type ${type}.`,
-      )
+      );
     }
 
-    const byte = Number(remaining & 0x7fn)
+    const byte = Number(remaining & 0x7fn);
     if (isSigned) {
-      remaining = remaining >> 7n
+      remaining = remaining >> 7n;
       const hasMore = !((remaining === 0n && (byte & 0x40) === 0) ||
-        (remaining === -1n && (byte & 0x40) !== 0))
+        (remaining === -1n && (byte & 0x40) !== 0));
       if (hasMore) {
-        result.push(byte | 0x80)
+        result.push(byte | 0x80);
       } else {
-        result.push(byte)
-        break
+        result.push(byte);
+        break;
       }
     } else {
-      remaining = remaining >> 7n
+      remaining = remaining >> 7n;
       if (remaining !== 0n) {
-        result.push(byte | 0x80)
+        result.push(byte | 0x80);
       } else {
-        result.push(byte)
-        break
+        result.push(byte);
+        break;
       }
     }
   }
 
-  return result
+  return result;
 }
-const leb = encodeLEB128
+const leb = encodeLEB128;
 function decodeLEB128(buffer, offset = 0, isSigned = false) {
-  let result = 0
-  let shift = 0
-  let byte
+  let result = 0;
+  let shift = 0;
+  let byte;
 
   do {
     if (offset >= buffer.length) {
-      console.error(new Error("Buffer underflow while decoding LEB128"))
-      return { value: undefined, bytesRead: 0 }
+      console.error(new Error("Buffer underflow while decoding LEB128"));
+      return { value: undefined, bytesRead: 0 };
     }
 
-    byte = buffer[offset++]
-    result |= (byte & 0x7F) << shift
-    shift += 7
-  } while ((byte & 0x80) !== 0)
+    byte = buffer[offset++];
+    result |= (byte & 0x7F) << shift;
+    shift += 7;
+  } while ((byte & 0x80) !== 0);
 
   if (isSigned) {
     // Determine the sign bit position
-    const signBitPosition = shift - 7
+    const signBitPosition = shift - 7;
     // Check if the sign bit is set
     if ((result & (1 << signBitPosition)) !== 0) {
       // Sign extend the result
-      result |= -(1 << shift)
+      result |= -(1 << shift);
     }
   }
 
-  return { value: result, bytesRead: offset - (buffer.byteOffset || 0) }
+  return { value: result, bytesRead: offset - (buffer.byteOffset || 0) };
 }
-const unleb = decodeLEB128
+const unleb = decodeLEB128;
 
 export function encodeIEEE754(type, value) {
   if (typeof value !== "number") {
-    throw new Error(`Invalid value: ${value}. Must be a number.`)
+    throw new Error(`Invalid value: ${value}. Must be a number.`);
   }
 
-  let buffer
-  let view
+  let buffer;
+  let view;
 
   switch (type) {
     case "f32":
-      buffer = new ArrayBuffer(4)
-      view = new DataView(buffer)
-      view.setFloat32(0, value, true) // little-endian
-      break
+      buffer = new ArrayBuffer(4);
+      view = new DataView(buffer);
+      view.setFloat32(0, value, true); // little-endian
+      break;
     case "f64":
-      buffer = new ArrayBuffer(8)
-      view = new DataView(buffer)
-      view.setFloat64(0, value, true) // little-endian
-      break
+      buffer = new ArrayBuffer(8);
+      view = new DataView(buffer);
+      view.setFloat64(0, value, true); // little-endian
+      break;
     default:
       throw new Error(
         `Invalid type format: ${type}. Expected format like "f32" or "f64".`,
-      )
+      );
   }
 
-  const result = []
+  const result = [];
   for (let i = 0; i < buffer.byteLength; i++) {
-    result.push(view.getUint8(i))
+    result.push(view.getUint8(i));
   }
 
-  return result
+  return result;
 }
 
 export function decodeIEEE754(buffer, type, offset = 0) {
   if (!Array.isArray(buffer)) {
-    throw new Error(`Invalid buffer: ${buffer}. Must be an array of bytes.`)
+    throw new Error(`Invalid buffer: ${buffer}. Must be an array of bytes.`);
   }
 
   if (offset < 0 || offset >= buffer.length) {
     throw new Error(
       `Invalid offset: ${offset}. Offset must be within the bounds of the buffer.`,
-    )
+    );
   }
 
-  let ab
-  let view
+  let ab;
+  let view;
 
   switch (type) {
     case "f32":
       if (offset + 4 > buffer.length) {
         throw new Error(
           `Invalid buffer length: ${buffer.length}. Expected at least 4 bytes starting from offset ${offset} for "f32".`,
-        )
+        );
       }
-      ab = new ArrayBuffer(4)
-      view = new DataView(ab)
+      ab = new ArrayBuffer(4);
+      view = new DataView(ab);
       for (let i = 0; i < 4; i++) {
-        view.setUint8(i, buffer[offset + i])
+        view.setUint8(i, buffer[offset + i]);
       }
-      return view.getFloat32(0, true) // little-endian
+      return view.getFloat32(0, true); // little-endian
     case "f64":
       if (offset + 8 > buffer.length) {
         throw new Error(
           `Invalid buffer length: ${buffer.length}. Expected at least 8 bytes starting from offset ${offset} for "f64".`,
-        )
+        );
       }
-      ab = new ArrayBuffer(8)
-      view = new DataView(ab)
+      ab = new ArrayBuffer(8);
+      view = new DataView(ab);
       for (let i = 0; i < 8; i++) {
-        view.setUint8(i, buffer[offset + i])
+        view.setUint8(i, buffer[offset + i]);
       }
-      return view.getFloat64(0, true) // little-endian
+      return view.getFloat64(0, true); // little-endian
     default:
       throw new Error(
         `Invalid type format: ${type}. Expected format like "f32" or "f64".`,
-      )
+      );
   }
 }
 
 function isPowerOf2(val) {
-  return val === 1 << (31 - Math.clz32(val))
+  return val === 1 << (31 - Math.clz32(val));
 }
 
 export function encode_v128(value = 0n) {
-  const result = []
+  const result = [];
   // console.log(value, typeof value)
   switch (typeof value) {
     case "object":
       if (!(value instanceof Array)) {
-        throw new Error("Only arrays are supported")
+        throw new Error("Only arrays are supported");
       }
       if (!(isPowerOf2(value.length)) || value.length > 16) {
         throw new Error(
           "Only arrays with 2**n elements are supported: [64x2, 32x4, 16x8, 8x16]",
-        )
+        );
       }
       if (!value.every(Number.isInteger)) {
-        throw new Error("Only vectors of integers are supported for now")
+        throw new Error("Only vectors of integers are supported for now");
       }
       for (let num of value) {
         for (let i = 0; i < (16 / value.length); i++) {
-          result.push(num & 0xff)
-          num >>>= 16
+          result.push(num & 0xff);
+          num >>>= 16;
         }
       }
-      break
+      break;
     case "boolean":
     case "string":
       value = typeof value !== "string"
         ? Number(value)
         : Number.isInteger(Number(value))
         ? BigInt(value)
-        : Number(value)
+        : Number(value);
     case "bigint":
     case "number":
       for (let i = 0; i < 16; i++) {
-        result.push(value & 0xff)
-        value >>>= 16
+        result.push(value & 0xff);
+        value >>>= 16;
       }
-      break
+      break;
     case "symbol":
     case "undefined":
     case "function":
-      throw new Error("Unsupported type: " + Type[value])
+      throw new Error("Unsupported type: " + Type[value]);
   }
-  return result
+  return result;
 }
 
 function limits(min, max) {
   if (max === undefined) {
-    return [0, ...leb("u32", min)]
+    return [0, ...leb("u32", min)];
   }
-  return [1, ...leb("u32", min), ...leb("u32", max)]
+  return [1, ...leb("u32", min), ...leb("u32", max)];
 }
 
 export const export_kind = {
@@ -379,12 +387,12 @@ export const export_kind = {
   1: "table",
   2: "mem",
   3: "global",
-}
+};
 
 export const mutability = {
   no: 0,
   yes: 1,
-}
+};
 
 export const import_kind = {
   /** @type {(args?: number[], rets?: number[]) => {code: number, type: number[]}} */
@@ -405,28 +413,28 @@ export const import_kind = {
   /** @type {(type: number, mutability: number) => {code: number, type: number}} */
   Global: (type, mutability = 0) => ({ code: 3, type: [type, mutability] }),
   global: 3,
-}
+};
 
 export default class {
-  static current_app = null
-  start_fn_index = -1
-  imports = []
-  functions_count = 0
-  funcs = []
-  exports = []
-  types = { count: 0 }
-  globals = []
+  static current_app = null;
+  start_fn_index = -1;
+  imports = [];
+  functions_count = 0;
+  funcs = [];
+  exports = [];
+  types = { count: 0 };
+  globals = [];
 
-  #exe = []
+  #exe = [];
 
   constructor() {}
 
   getFuncTypeIndex(type = Type.Func()) {
     if (this.types[type] === undefined) {
-      this.types[type] = this.types.count
-      this.types[this.types.count++] = type
+      this.types[type] = this.types.count;
+      this.types[this.types.count++] = type;
     }
-    return this.types[type]
+    return this.types[type];
   }
 
   /**
@@ -438,19 +446,19 @@ export default class {
    * ])
    */
   newImport(namespace, variables) {
-    guard({ namespace, variables })
-    const result = {}
+    guard({ namespace, variables });
+    const result = {};
     for (const v of variables) {
-      const [name, kind] = v
+      const [name, kind] = v;
       if (kind.code === import_kind.func) {
-        result[name] = this.functions_count++
-        kind.type = this.getFuncTypeIndex(kind.type)
+        result[name] = this.functions_count++;
+        kind.type = this.getFuncTypeIndex(kind.type);
       } else if (kind.code === import_kind.global) {
-        result[name] = this.newGlobal(kind.type[0], undefined, kind.type[1])
+        result[name] = this.newGlobal(kind.type[0], undefined, kind.type[1]);
       }
-      this.imports.push({ namespace, name, kind })
+      this.imports.push({ namespace, name, kind });
     }
-    return result
+    return result;
   }
 
   /**
@@ -460,20 +468,20 @@ export default class {
    */
   newMemory(min = 1, max = -1, _export = false) {
     if (this.memory !== undefined) {
-      throw new Error("Already defined memory.")
+      throw new Error("Already defined memory.");
     }
     if (this.imports.some((i) => i.type === import_kind.mem)) {
-      throw new Error("Already importing memory.")
+      throw new Error("Already importing memory.");
     }
     // both of these ^ restrictions may be lifted in future versions of wasm
-    this.memory = limits(min, ((max ?? -1) === -1) ? undefined : max)
+    this.memory = limits(min, ((max ?? -1) === -1) ? undefined : max);
 
     if (_export) {
       this.exports.push([
         ...str([typeof _export === "string" ? _export : "memory"]),
         export_kind.mem,
         0, // memory index (always zero, until specs allow more mems)
-      ])
+      ]);
     }
   }
 
@@ -484,23 +492,23 @@ export default class {
    * @param {{export?: string, start?: bool}?} optional
    */
   newFunction(type, locals, code, optional) {
-    guard({ type, locals, code })
+    guard({ type, locals, code });
     if (locals.some((v) => !(v instanceof Array && v.length === 2))) {
       throw new Error(
         "Local variables must be declared in form Array<[type, count]>",
-      )
+      );
     }
     if (optional?.export !== undefined) {
       this.exports.push([
         ...str([optional.export]),
         export_kind.func,
         this.functions_count,
-      ])
+      ]);
     }
-    this.functions_count += 1
+    this.functions_count += 1;
     if (optional?.start) {
       if (this.start_fn_index !== -1) {
-        throw new Error("There can only be one start function!")
+        throw new Error("There can only be one start function!");
       }
       if (type.length !== 0) {
         throw new Error(
@@ -513,18 +521,18 @@ export default class {
               ?.flatMap((v) => Type[v] ?? "0x" + v.toString(16))
               .join(", ")
           })\``,
-        )
+        );
       }
-      this.start_fn_index = this.functions_count - 1
+      this.start_fn_index = this.functions_count - 1;
     }
 
-    void this.getFuncTypeIndex(Type.Func(...type))
+    void this.getFuncTypeIndex(Type.Func(...type));
 
     const search_blocktype = (v) =>
       v.blocktype === undefined || typeof v.blocktype === "number"
         ? void v?.forEach?.(search_blocktype)
-        : void this.getFuncTypeIndex(v.blocktype)
-    search_blocktype(code)
+        : void this.getFuncTypeIndex(v.blocktype);
+    search_blocktype(code);
 
     // const bt = val.blocktype
     // val = 'function ' + this.getFuncTypeIndex(bt) + ' "' + Type[bt[0]] + '('
@@ -537,13 +545,13 @@ export default class {
     // val += ')"'
     // break
 
-    code.push(raw_instr.end)
-    this.funcs.push({ type, locals, code })
-    return this.funcs.length - 1
+    code.push(raw_instr.end);
+    this.funcs.push({ type, locals, code });
+    return this.funcs.length - 1;
   }
 
   newGlobal(type, value, mutability = 0) {
-    guard({ type })
+    guard({ type });
 
     // let global_id = this.globals.findIndex(v =>
     //   v.type === type &&
@@ -554,7 +562,7 @@ export default class {
     // )
     // if (global_id >= 0) return global_id
 
-    let global_id = this.globals.length
+    let global_id = this.globals.length;
     switch (type) {
       case Type.i32:
         this.globals.push({
@@ -562,48 +570,48 @@ export default class {
           value,
           val_bytes: [...W.I32.const(value).flat(), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.i64:
         this.globals.push({
           type,
           value,
           val_bytes: [...W.I64.const(value).flat(), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.v128:
         this.globals.push({
           type,
           value,
           val_bytes: [...W.V128.const(value).flat(), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.f32:
         this.globals.push({
           type,
           value,
           val_bytes: [...W.F32.const(value).flat(), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.f64:
         this.globals.push({
           type,
           value,
           val_bytes: [...W.F64.const(value).flat(), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.externref:
         this.globals.push({
           type,
           value,
           val_bytes: [...W.ref.null(Type.externref), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       case Type.funcref:
         this.globals.push({
           type,
@@ -612,42 +620,46 @@ export default class {
             ? [...W.ref.null(Type.funcref), W.end]
             : [...W.ref.func(value), W.end],
           mutability,
-        })
-        break
+        });
+        break;
       default:
-        throw new Error(`Unknown type ${type}(${Type[type]})`)
+        throw new Error(`Unknown type ${type}(${Type[type]})`);
     }
-    return global_id
+    return global_id;
   }
 
   assembleTypeSection() {
-    if (this.types.count === 0) return
+    if (this.types.count === 0) return;
     // const types = this.types;
-    let size_num = 1
+    let size_num = 1;
     for (let i = 0; i < this.types.count; i++) {
-      size_num += this.types[i].length
+      size_num += this.types[i].length;
     }
-    const size = leb("u32", size_num)
+    const size = leb("u32", size_num);
 
     DEBUG(this.#exe.length, [
       [section.type, "section_type"],
       [size, "section_size", size.length],
       [this.types.count, "count"],
-    ], "Type section")
+    ], "Type section");
 
-    this.#exe.push(section.type, ...size, this.types.count)
+    this.#exe.push(section.type, ...size, this.types.count);
 
     for (let i = 0; i < this.types.count; i++) {
-      const t = this.types[i]
-      let c = 1, io = 0
+      const t = this.types[i];
+      let c = 1, io = 0;
 
       DEBUG(
         this.#exe.length,
-        t.map((v) => c-- > 0 ? [v, Type[v]] : [c = v, io++ ? "output_count" : "input_count"]),
+        t.map((v) =>
+          c-- > 0
+            ? [v, Type[v]]
+            : [c = v, io++ ? "output_count" : "input_count"]
+        ),
         `Type ${i}`,
-      )
+      );
 
-      this.#exe.push(...t)
+      this.#exe.push(...t);
     }
   }
 
@@ -704,9 +716,9 @@ export default class {
       ...str([i.name]),
       i.kind.code,
       i.kind.type,
-    ]).flat(10)
-    const count = this.imports.length
-    const size = leb("u32", res.length + 1)
+    ]).flat(10);
+    const count = this.imports.length;
+    const size = leb("u32", res.length + 1);
 
     DEBUG(this.#exe.length, [
       [section.import, "section_type"],
@@ -723,19 +735,19 @@ export default class {
         [i.kind.code, "import_kind"],
         [i.kind.type, "import_signature_index"],
       ]),
-    ], "Import section")
+    ], "Import section");
 
     this.#exe.push(
       section.import,
       ...size,
       count,
       ...res,
-    )
+    );
   }
 
   assembleFunctionSection() {
-    if (this.funcs.length === 0) return
-    const size = leb("u32", this.funcs.length + 1)
+    if (this.funcs.length === 0) return;
+    const size = leb("u32", this.funcs.length + 1);
 
     DEBUG(this.#exe.length, [
       [section.function, "section_type"],
@@ -746,9 +758,9 @@ export default class {
       ],
       [this.funcs.length, "count"],
       [],
-    ], "Function section")
+    ], "Function section");
 
-    this.#exe.push(section.function, ...size, this.funcs.length)
+    this.#exe.push(section.function, ...size, this.funcs.length);
 
     DEBUG(
       this.#exe.length,
@@ -757,64 +769,64 @@ export default class {
         i,
       ) => [this.types[Type.Func(...v.type)], `Function ${i} type index`]),
       "Funcs",
-    )
+    );
 
     this.#exe.push(
       ...this.funcs.map((fn) => this.types[Type.Func(...fn.type)]),
-    )
+    );
   }
 
   assembleTableSection() {
-    if (IS_DEBUG) console.log("TODO: table section")
+    if (IS_DEBUG) console.log("TODO: table section");
   }
 
   assembleMemorySection() {
-    if (!this.memory) return
+    if (!this.memory) return;
 
     DEBUG(this.#exe.length, [
       [section.memory, "section_type"],
       [(this.memory.length ?? 0) + 1, "section_size"],
       [1, "count"],
-    ], "Memory section")
+    ], "Memory section");
 
-    this.#exe.push(section.memory, this.memory.length + 1, 1)
+    this.#exe.push(section.memory, this.memory.length + 1, 1);
 
-    let val, val2
+    let val, val2;
 
     if (IS_DEBUG) {
-      let foo = unleb(this.memory, 1)
-      val = foo.value
-      foo = unleb(this.memory, 1 + foo.bytesRead)
-      val2 = foo.value
+      let foo = unleb(this.memory, 1);
+      val = foo.value;
+      foo = unleb(this.memory, 1 + foo.bytesRead);
+      val2 = foo.value;
     }
 
     DEBUG(this.#exe.length, [
       [this.memory[0], "limit_type"],
       [val, "min"],
       val2 ? [val2, "max"] : [],
-    ], "memory_limits")
+    ], "memory_limits");
 
-    this.#exe.push(...this.memory)
+    this.#exe.push(...this.memory);
   }
 
   assembleGlobalSection() {
-    if (this.globals.length === 0) return
+    if (this.globals.length === 0) return;
     const size = this.globals.reduce(
       (acc, v) => acc + v.val_bytes.flat().length + 2,
       0,
-    )
+    );
 
     DEBUG(this.#exe.length, [
       [section.global, "section_type"],
       [size + 1, "section_size"],
       [this.globals.length, "count"],
-    ], "Global section")
+    ], "Global section");
 
     this.#exe.push(
       section.global,
       ...leb("u32", size + 1),
       this.globals.length,
-    )
+    );
 
     this.globals.forEach((glob, i) => {
       // console.log(123, glob.val_bytes)
@@ -834,77 +846,79 @@ export default class {
           [glob.val_bytes[1]].flat().length,
         ],
         [debug_byte_arr(glob.val_bytes[2]), W[glob.val_bytes[2]]],
-      ], `Global ${i}`)
+      ], `Global ${i}`);
 
       this.#exe.push(
         glob.type,
         glob.mutability,
         ...glob.val_bytes.flat(),
-      )
-    })
+      );
+    });
   }
 
   assembleExportSection() {
-    if (this.exports.length === 0) return
-    const buf = this.exports.reduce((acc, v) => acc + v.length, 0)
+    if (this.exports.length === 0) return;
+    const buf = this.exports.reduce((acc, v) => acc + v.length, 0);
 
     DEBUG(this.#exe.length, [
       [section.export, "section_type"],
       [buf + 1, "section_size"],
       [this.exports.length, "count"],
-    ], "Export section")
+    ], "Export section");
 
-    this.#exe.push(section.export, buf + 1, this.exports.length)
+    this.#exe.push(section.export, buf + 1, this.exports.length);
 
-    if (IS_DEBUG) console.log("- Exports:")
+    if (IS_DEBUG) console.log("- Exports:");
     this.exports.forEach((v, i) => {
       DEBUG(this.#exe.length, [
         [v[0], "string length"],
         [debug_str(v.slice(1, unleb(v).value + 1)), "export name", v[0]],
         [v[v[0] + 1], `export kind (${export_kind[v[v[0] + 1]]})`],
         [v[v[0] + 2], "id"],
-      ], `Export ${i}`)
+      ], `Export ${i}`);
 
-      this.#exe.push(...v)
-    })
+      this.#exe.push(...v);
+    });
   }
 
   assembleStartSection() {
-    if (IS_DEBUG) console.log("TODO: start section")
+    if (IS_DEBUG) console.log("TODO: start section");
   }
 
   assembleElementSection() {
-    if (IS_DEBUG) console.log("TODO: element section")
+    if (IS_DEBUG) console.log("TODO: element section");
   }
 
   assembleCodeSection() {
-    if (this.funcs.length === 0) return
+    if (this.funcs.length === 0) return;
     const processObjectData = (obj) => {
       // console.log("hahaha", JSON.stringify(obj))
       switch (false) {
         case !obj?.blocktype:
-          return obj.blocktype instanceof Array ? leb("i33", this.getFuncTypeIndex(obj.blocktype)) : obj.blocktype
+          return obj.blocktype instanceof Array
+            ? leb("i33", this.getFuncTypeIndex(obj.blocktype))
+            : obj.blocktype;
         case !obj?.functype:
-          return this.getFuncTypeIndex(obj.functype)
+          return this.getFuncTypeIndex(obj.functype);
         case !obj?.accumulated:
-          return obj.accumulated.flat(10)
+          return obj.accumulated.flat(10);
         default:
           if (typeof obj === "object" && !(obj instanceof Array)) {
-            console.log("Unknown object:", obj)
+            console.log("Unknown object:", obj);
           }
-          return obj
+          return obj;
       }
-    }
+    };
     function assembleFuncBody(func) {
       const fn_buf = [
         func.locals.length,
         ...func.locals.flatMap(([type, count]) => [count, type]),
         ...func.code.flat(10).flatMap((v) => processObjectData(v)),
-      ]
+      ];
       // console.log("fn_buf:", fn_buf)
-      return [...leb("u32", fn_buf.length), ...fn_buf]
+      return [...leb("u32", fn_buf.length), ...fn_buf];
     }
-    const funcs = this.funcs.map(assembleFuncBody)
+    const funcs = this.funcs.map(assembleFuncBody);
 
     DEBUG(this.#exe.length, [
       [section.code, "section_type"],
@@ -914,22 +928,22 @@ export default class {
         "section_size",
       ],
       [funcs.length, "count"],
-    ], "Code section")
+    ], "Code section");
 
     this.#exe.push(
       section.code,
       ...encodeLEB128("u32", funcs.flat().length + 1),
       this.funcs.length,
-    )
+    );
 
-    let acc_len = this.#exe.length
+    let acc_len = this.#exe.length;
     this.funcs.forEach((func, i) => {
       const flatten = function (v, d = 0) {
-        if (!(v instanceof Array)) return [v]
-        if (v.length === 1) return v
+        if (!(v instanceof Array)) return [v];
+        if (v.length === 1) return v;
         if (
           v.length === 2 && v[0] instanceof Array && !(v[0][0] instanceof Array)
-        ) return [v]
+        ) return [v];
 
         // v = v instanceof Array && v.length === 1 ? v[0] : v;
         // console.log("f"+d, v, v instanceof InstrArray)
@@ -941,8 +955,8 @@ export default class {
         //   return v.flatMap(ch => flatten(ch, d + 100))
         // }
         // console.log("aa"+d, v)
-        return v.flatMap((ch) => flatten(ch, (d + 1) * 100))
-      }
+        return v.flatMap((ch) => flatten(ch, (d + 1) * 100));
+      };
       DEBUG(acc_len, [
         [unleb(funcs[i]).value, `function len`, unleb(funcs[i]).bytesRead],
         [func.locals.length, "local declarations count"],
@@ -966,48 +980,52 @@ export default class {
           .map((v) => {
             // TODO: LEFT HERE
             // console.log(v)
-            const first_is_instr = v[0] instanceof Array && v[0]
+            const first_is_instr = v[0] instanceof Array && v[0];
             // console.log({v, first_is_instr, leb: unleb([v[1]].flat()), ieee: decodeIEEE754([...[v[1]].flat(), 0,0,0], "f32")})
-            if (!first_is_instr) return [debug_byte_arr(v), W[v]]
-            const instr = W[v[0]]
-            let val = v[1]
+            if (!first_is_instr) return [debug_byte_arr(v), W[v]];
+            const instr = W[v[0]];
+            let val = v[1];
             switch (true) {
               case instr.startsWith("i32_store"):
               case instr.startsWith("i32_load"):
               case instr.startsWith("i64_store"):
               case instr.startsWith("i64_load"):
-                val = `alignment: ${2 ** val[0]}, offset: ${unleb(val, 1).value}`
-                break
+                val = `alignment: ${2 ** val[0]}, offset: ${
+                  unleb(val, 1).value
+                }`;
+                break;
               case instr.startsWith("i32_"):
               case instr.startsWith("i64_"):
-                val = unleb(val).value
-                break
+                val = unleb(val).value;
+                break;
               case instr.startsWith("f32"):
-                val = decodeIEEE754(val, "f32")
-                break
+                val = decodeIEEE754(val, "f32");
+                break;
               case instr.startsWith("f64"):
-                val = decodeIEEE754(val, "f64")
-                break
+                val = decodeIEEE754(val, "f64");
+                break;
               case instr.startsWith("block"):
               case instr.startsWith("loop"):
               case instr.startsWith("if"):
-                if (!val.blocktype?.length) {
-                  val = Type[val.blocktype]
-                  break
+                {
+                  if (!val.blocktype?.length) {
+                    val = Type[val.blocktype];
+                    break;
+                  }
+                  const bt = val.blocktype;
+                  val = "function " + this.getFuncTypeIndex(bt) + ' "' +
+                    Type[bt[0]] + "(";
+                  const l = bt[1];
+                  for (let i = 0; i < l; i++) {
+                    val += Type[bt[2 + i]] + ", ";
+                  }
+                  val += ") -> (";
+                  for (let i = 0; i < bt[2 + l]; i++) {
+                    val += Type[bt[3 + i]] + ", ";
+                  }
+                  val += ')"';
                 }
-                const bt = val.blocktype
-                val = "function " + this.getFuncTypeIndex(bt) + ' "' +
-                  Type[bt[0]] + "("
-                const l = bt[1]
-                for (let i = 0; i < l; i++) {
-                  val += Type[bt[2 + i]] + ", "
-                }
-                val += ") -> ("
-                for (let i = 0; i < bt[2 + l]; i++) {
-                  val += Type[bt[3 + i]] + ", "
-                }
-                val += ')"'
-                break
+                break;
               case instr.startsWith("local_"):
               case instr.startsWith("global_"):
               case instr.startsWith("br"):
@@ -1018,33 +1036,33 @@ export default class {
               case instr.startsWith("i8x16_extract_lane"):
               case instr.startsWith("i8x16_replace_lane"):
                 // instr/val are not changed
-                break
+                break;
               case instr.startsWith("selectt"):
-                console.error("Todo: proper select debug info")
-                break
+                console.error("Todo: proper select debug info");
+                break;
               default:
                 throw new Error(
                   "unhandled: " + instr +
                     "  (use spread operator for now '...op')",
-                )
+                );
             }
-            let tmp = [debug_byte_arr(v), `${instr} ${val}`, v.flat(10).length]
+            let tmp = [debug_byte_arr(v), `${instr} ${val}`, v.flat(10).length];
             // console.log(tmp)
-            return tmp
+            return tmp;
           }),
-      ], `Function ${i}`)
-      acc_len += funcs[i].length
-    })
+      ], `Function ${i}`);
+      acc_len += funcs[i].length;
+    });
 
-    this.#exe.push(...funcs.flat())
+    this.#exe.push(...funcs.flat());
   }
 
   assembleDataSection() {
-    if (IS_DEBUG) console.log("TODO: data section")
+    if (IS_DEBUG) console.log("TODO: data section");
   }
 
   assembleDataCountSection() {
-    if (IS_DEBUG) console.log("TODO: data count section")
+    if (IS_DEBUG) console.log("TODO: data count section");
   }
   /**
    * TODO: labels and debug info
@@ -1059,33 +1077,33 @@ export default class {
    * 0x00, // num locals
    */
   assembleNameSection() {
-    if (IS_DEBUG) console.log("TODO: name section")
+    if (IS_DEBUG) console.log("TODO: name section");
   }
 
   assembleExecutable() {
     DEBUG(this.#exe.length, [
       [debug_byte`\x00asm`, "Magic", 4],
       [debug_byte`\x01\x00\x00\x00`, "Version"],
-    ], "Program start")
-    this.#exe.push(...byte`\x00asm\x01\x00\x00\x00`)
+    ], "Program start");
+    this.#exe.push(...byte`\x00asm\x01\x00\x00\x00`);
 
-    this.assembleTypeSection()
-    this.assembleImportSection()
-    this.assembleFunctionSection()
-    this.assembleTableSection()
-    this.assembleMemorySection()
-    this.assembleGlobalSection()
-    this.assembleExportSection()
-    this.assembleStartSection()
-    this.assembleElementSection()
-    this.assembleCodeSection()
-    this.assembleDataSection()
-    this.assembleDataCountSection()
-    this.assembleNameSection()
+    this.assembleTypeSection();
+    this.assembleImportSection();
+    this.assembleFunctionSection();
+    this.assembleTableSection();
+    this.assembleMemorySection();
+    this.assembleGlobalSection();
+    this.assembleExportSection();
+    this.assembleStartSection();
+    this.assembleElementSection();
+    this.assembleCodeSection();
+    this.assembleDataSection();
+    this.assembleDataCountSection();
+    this.assembleNameSection();
 
     // if (IS_DEBUG) this.#exe.forEach((v, i) => console.log(i.toString(10), debug_byte_arr([v])))
 
-    return new Uint8Array(this.#exe)
+    return new Uint8Array(this.#exe);
   }
 
   /**
@@ -1093,10 +1111,10 @@ export default class {
    * @returns {Promise<WebAssembly.WebAssemblyInstantiatedSource>}
    */
   compile(importObject = {}, options = {}) {
-    IS_DEBUG = options.debug ?? false
+    IS_DEBUG = options.debug ?? false;
 
-    const exe = this.assembleExecutable()
+    const exe = this.assembleExecutable();
 
-    return WebAssembly.instantiate(exe, importObject)
+    return WebAssembly.instantiate(exe, importObject);
   }
 }

@@ -1,6 +1,6 @@
-import W from "./higher_level_lib.js"
+import W from "./higher_level_lib.js";
 
-const app = W.App.init()
+const app = W.App.init();
 
 // app.import`console.log`(console.log, W.Func.in(W.I32))
 // app.import`console`({
@@ -105,33 +105,33 @@ const app = W.App.init()
  * meta-capabilities will be provided by allowing javascript
  */
 const add_100 = app.function((x = W.I32.param("x")) => {
-  W.I32.const(50)
-  return x._.add(50).add()
-}).export("add_100")
+  W.I32.const(50);
+  return x._.add(50).add();
+}).export("add_100");
 
 // this approach also allows caching! (TODO)
 const factorial = app.function((n = W.I64.param("n")) => {
-  const acc = W.I64.local("acc").set(1)
+  const acc = W.I64.local("acc").set(1);
 
   W.block(() =>
     W.loop(() => {
-      W.br_if(1, n._.eq(0))
+      W.br_if(1, n._.eq(0));
 
-      acc._ = acc._.mul(n._)
-      n._ = n._.sub(1)
-      W.br(0)
+      acc._ = acc._.mul(n._);
+      n._ = n._.sub(1);
+      W.br(0);
     })
-  )
+  );
 
-  return acc._
-}).export("factorial")
+  return acc._;
+}).export("factorial");
 
-app.compile()
+app.compile();
 
-console.log(factorial._(12)) // 479001600
+console.log(factorial._(12)); // 479001600
 
 // console.log(add_100._(25)) // error, not compiled yet
 
 // app.compile(); // returns module, but can be omitted
 
-console.log(add_100._(25)) // should print 125
+console.log(add_100._(25)); // should print 125

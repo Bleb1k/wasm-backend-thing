@@ -1,9 +1,9 @@
-import App, { Type } from "./lib.js"
-import W from "./instructions.js"
-import { I32, I64 } from "./expand_instr.js"
+import App, { Type } from "./lib.js";
+import W from "./instructions.js";
+import { I32, I64 } from "./expand_instr.js";
 
 export function add_bump_allocator(/** @type {App} */ app) {
-  const w_alloc_offset = app.newGlobal(Type.i32, 32, true)
+  const w_alloc_offset = app.newGlobal(Type.i32, 32, true);
 
   const w_alloc = app.newFunction(
     [[
@@ -36,9 +36,9 @@ export function add_bump_allocator(/** @type {App} */ app) {
       W.global.set(w_alloc_offset), // addr
     ],
     { export: "alloc" },
-  )
+  );
 
-  return { w_alloc_offset, w_alloc }
+  return { w_alloc_offset, w_alloc };
 }
 
 export function add_arena_allocator(/** @type {App} */ app) {
@@ -56,7 +56,7 @@ export function add_arena_allocator(/** @type {App} */ app) {
       W.local.get(0),
       I32.to_u64_extend().add(),
     ],
-  )
+  );
 
-  return { w_new_arena }
+  return { w_new_arena };
 }

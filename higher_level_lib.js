@@ -1,22 +1,36 @@
-import { F32, F64, Float, I16, I32, I64, I8, Int, Num, U16, U32, U64, U8 } from "./higher_level_instructions.js"
+import {
+  F32,
+  F64,
+  Float,
+  I16,
+  I32,
+  I64,
+  I8,
+  Int,
+  Num,
+  U16,
+  U32,
+  U64,
+  U8,
+} from "./higher_level_instructions.js";
 
 export class GlobalContext {
   /** @type {App?} */
-  static current_app = undefined
+  static current_app = undefined;
 
   /** @param {App} app */
   static set current_app(app) {
     if (this.current_app != app) {
-      throw new Error("You can't mish-mash apps.")
+      throw new Error("You can't mish-mash apps.");
     }
-    this.current_app = app
+    this.current_app = app;
   }
 
   static get current_app() {
     if (!this.current_app) {
-      throw new Error("No app currently stored.")
+      throw new Error("No app currently stored.");
     }
-    return this.current_app
+    return this.current_app;
   }
 
   // /** @param {Num} val */
@@ -27,25 +41,25 @@ export class GlobalContext {
   /** @param {"block" | "function"} type  */
   static blockStart(type = "block") {
     if (!this.current_app) {
-      throw new Error("Can't create new scope, no app is provided.")
+      throw new Error("Can't create new scope, no app is provided.");
     }
-    const scope = new Scope()
+    const scope = new Scope();
     if (type === "block") {
       if (this.current_app.scope.length === 0) {
-        throw new Error("Can't create block scope outside of function scope.")
+        throw new Error("Can't create block scope outside of function scope.");
       }
-      scope.local = this.current_app.scope.at(-1).local
+      scope.local = this.current_app.scope.at(-1).local;
     }
-    this.current_app.scope.push(scope)
+    this.current_app.scope.push(scope);
   }
 
   static blockEnd() {
     if (!this.current_app) {
-      throw new Error("Can't pop the scope, no app is provided.")
+      throw new Error("Can't pop the scope, no app is provided.");
     }
-    const scope = this.current_app.scope.pop()
+    const scope = this.current_app.scope.pop();
     if (scope.stack.length > 0) {
-      console.error(new Error("Stack of popped block is not empty."))
+      console.error(new Error("Stack of popped block is not empty."));
     }
   }
 
@@ -55,14 +69,14 @@ export class GlobalContext {
 
 class Scope {
   constructor() {
-    this.stack = []
-    this.local = []
+    this.stack = [];
+    this.local = [];
   }
 }
 
 export class App {
   /** @type {Scope[]} */
-  scope = []
+  scope = [];
 
   /**
    * @param {number|bigint} value
@@ -72,59 +86,59 @@ export class App {
     if (bypass_token !== App.#PRIVATE_CONSTRUCTOR_TOKEN) {
       throw new Error(
         "Private constructor. Use App.init() to create an instance.",
-      )
+      );
     }
   }
 
   static init() {
-    return new App(App.#PRIVATE_CONSTRUCTOR_TOKEN)
+    return new App(App.#PRIVATE_CONSTRUCTOR_TOKEN);
   }
 
-  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN")
+  static #PRIVATE_CONSTRUCTOR_TOKEN = Symbol("PRIVATE_CONSTRUCTOR_TOKEN");
 
   import(a, ...b) {
     return (c, ...d) => {
-      console.log(`a: `, a, `\nb: `, b, `\nc: `, c, `\nd: `, d)
-    }
+      console.log(`a: `, a, `\nb: `, b, `\nc: `, c, `\nd: `, d);
+    };
   }
 
   /** @param {() => any|any[]} fn*/
   function(fn) {
-    GlobalContext.current_app = this
-    GlobalContext.blockStart("function")
+    GlobalContext.current_app = this;
+    GlobalContext.blockStart("function");
 
-    const returns = [fn()].flat()
-    console.log("During creation, function returned:", returns)
+    const returns = [fn()].flat();
+    console.log("During creation, function returned:", returns);
 
-    GlobalContext.blockEnd()
+    GlobalContext.blockEnd();
     if (!(this.scope.length == 0)) {
-      throw new Error("Not all blocks were closed properly.")
+      throw new Error("Not all blocks were closed properly.");
     }
-    delete GlobalContext.current_app
+    delete GlobalContext.current_app;
     return {
       export: (
         str,
       ) => (console.log("Exporting function " + str), { _: () => "what?" }),
-    }
+    };
   }
 
   compile() {
-    console.log("NO, THIS IS NOT COMPILED YET....")
+    console.log("NO, THIS IS NOT COMPILED YET....");
   }
 }
 
 class BlockCtx {
-  static args = []
-  static rets = []
+  static args = [];
+  static rets = [];
 }
 
 const Block = function (fn) {
-}
+};
 
 const Func = {
   in: (...a) => (console.log(`Func.in(`, a, `)`), Func),
   out: (...a) => (console.log(`Func.out(`, a, `)`), Func),
-} // fake it till you make it :D
+}; // fake it till you make it :D
 
 export default {
   App,
@@ -140,4 +154,4 @@ export default {
   F64,
   Func,
   block: Block,
-}
+};
